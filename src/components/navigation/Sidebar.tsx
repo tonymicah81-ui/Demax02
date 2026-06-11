@@ -1,12 +1,10 @@
 import { NavLink } from "react-router-dom";
 import { 
   LayoutDashboard, 
-  Layers, 
   ShoppingCart, 
   MessageSquare, 
   User, 
   Users, 
-  AlertCircle,
   Settings,
   ShieldAlert,
   ChevronRight,
@@ -14,7 +12,8 @@ import {
   Bell,
   Package,
   Wrench,
-  Activity
+  Activity,
+  SlidersHorizontal
 } from "lucide-react";
 import { useAuth } from "../../AuthContext";
 import { cn } from "../../utils/cn";
@@ -60,7 +59,7 @@ function UnreadCountBadge({ isUserSide }: { isUserSide: boolean }) {
 }
 
 export function Sidebar() {
-  const { isAdmin, isSuperAdmin } = useAuth();
+  const { profile, isAdmin, isSuperAdmin } = useAuth();
 
   const userLinks = [
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -76,18 +75,19 @@ export function Sidebar() {
   const adminLinks = [
     { to: "/admin", label: "Admin HQ", icon: ShieldAlert },
     { to: "/admin/marketplace", label: "Market Control", icon: ShoppingCart },
-    { to: "/admin/payments", label: "Fiscal Review", icon: Wallet },
-    { to: "/admin/fixes", label: "Engine Fixes", icon: Wrench },
+    { to: "/admin/payments", label: "Payments", icon: Wallet },
+    { to: "/admin/fixes", label: "Bug Fixes", icon: Wrench },
     { to: "/admin/projects", label: "Operations", icon: Activity },
-    { to: "/admin/users", label: "Entity Registry", icon: Users },
-    { to: "/admin/chats", label: "Signal Relays", icon: MessageSquare },
-    { to: "/admin/broadcast", label: "Broadcaster", icon: Bell },
+    { to: "/admin/users", label: "User Management", icon: Users },
+    { to: "/admin/chats", label: "Messages", icon: MessageSquare },
+    { to: "/admin/broadcast", label: "Broadcast", icon: Bell },
   ];
 
   const superAdminLinks = [
     { to: "/superadmin", label: "Super Authority", icon: Settings },
     { to: "/superadmin/admins", label: "Manage Admins", icon: ShieldAlert },
-    { to: "/superadmin/audit", label: "Command Audit", icon: Activity },
+    { to: "/superadmin/audit", label: "Audit Logs", icon: Activity },
+    { to: "/superadmin/settings", label: "Platform Settings", icon: SlidersHorizontal },
   ];
 
   const renderLinks = (links: any[]) => (
@@ -147,12 +147,12 @@ export function Sidebar() {
 
       <div className="p-6 border-t border-brand-border dark:border-white/5 bg-slate-50/50 dark:bg-slate-950/20">
         <div className="flex items-center gap-3 p-3 bg-white dark:bg-slate-800 rounded-xl border border-brand-border dark:border-white/5 shadow-sm">
-           <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex-shrink-0 overflow-hidden">
-             <img src="https://picsum.photos/seed/user/100/100" referrerPolicy="no-referrer" alt="User" />
+           <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex-shrink-0 flex items-center justify-center">
+             <User className="w-5 h-5 text-slate-400" />
            </div>
            <div className="flex-1 min-w-0">
-             <p className="text-xs font-black text-brand-text-bold dark:text-white truncate uppercase tracking-tight">Active User</p>
-             <p className="text-[10px] text-slate-500 truncate lowercase font-mono">system.status::online</p>
+             <p className="text-xs font-black text-brand-text-bold dark:text-white truncate uppercase tracking-tight">{profile?.username || "User"}</p>
+             <p className="text-[10px] text-slate-500 truncate lowercase font-mono">{profile?.role || "user"}</p>
            </div>
         </div>
       </div>

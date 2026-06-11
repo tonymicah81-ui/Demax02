@@ -1,18 +1,20 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db, onAuthStateChanged, doc, getDoc, onSnapshot, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, setDoc } from './firebase';
 
-export type UserRole = 'user' | 'client' | 'admin' | 'super_admin';
+export type UserRole = 'user' | 'admin' | 'super_admin';
 export type UserStatus = 'active' | 'inactive';
 
-interface UserProfile {
+export interface UserProfile {
   uid: string;
   email: string | null;
   role: UserRole;
   status: UserStatus;
   username: string;
   phone?: string;
+  phoneNumber?: string;
   balance?: number;
-  createdAt?: any;
+  personalEmail?: string;
+  createdAt?: string;
 }
 
 interface AuthContextType {
@@ -23,7 +25,15 @@ interface AuthContextType {
   isSuperAdmin: boolean;
   signout: () => Promise<void>;
   signin: (email: string, password: string) => Promise<any>;
-  register: (data: any, type: 'user' | 'admin') => Promise<void>;
+  register: (data: RegisterData, type: 'user' | 'admin') => Promise<void>;
+}
+
+interface RegisterData {
+  email: string;
+  password: string;
+  username: string;
+  phoneNumber?: string;
+  tfaEnabled?: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,21 +48,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (u) => {
       setUser(u);
-      
+
       if (unsubscribeProfile) {
         unsubscribeProfile();
         unsubscribeProfile = null;
       }
 
       if (u) {
-        // Find which collection the user belongs to
-        const userRef = doc(db, 'users', u.uid);
-        const adminRef = doc(db, 'admins', u.uid);
-        
         try {
+          const userRef = doc(db, 'users', u.uid);
+          const adminRef = doc(db, 'admins', u.uid);
+
           const userSnap = await getDoc(userRef);
           const targetRef = userSnap.exists() ? userRef : adminRef;
-          
+
           unsubscribeProfile = onSnapshot(targetRef, (snap) => {
             if (snap.exists()) {
               setProfile({ uid: snap.id, ...snap.data() } as UserProfile);
@@ -62,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setLoading(false);
           });
         } catch (error) {
-          console.error("Error fetching profile:", error);
+          console.error('Error fetching profile:', error);
           setLoading(false);
         }
       } else {
@@ -88,31 +97,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signOut(auth);
   };
 
-  const register = async (data: any, type: 'user' | 'admin') => {
+  const register = async (data: RegisterData, type: 'user' | 'admin') => {
     const { email, password, username, phoneNumber, tfaEnabled } = data;
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const uid = userCredential.user.uid;
 
     if (type === 'user') {
       await setDoc(doc(db, 'users', uid), {
+        uid,
         username,
         email,
         phoneNumber: phoneNumber || '',
         tfaEnabled: tfaEnabled || false,
         role: 'user',
         status: 'active',
-        createdAt: new Date().toISOString()
+        balance: 0,
+        createdAt: new Date().toISOString(),
       });
     } else {
-      // Vault/Staff Registration (Admin ID collection)
+      // Vault / Staff registration — goes to admins collection
       await setDoc(doc(db, 'admins', uid), {
+        uid,
         username,
         email,
-        phoneNumber,
-        password, // As requested: "We will have the information, sign-up information, and also the password."
-        role: 'client', // As requested: "The role will be clients"
-        status: 'inactive', // As requested: "The status will be inactive"
-        createdAt: new Date().toISOString()
+        phoneNumber: phoneNumber || '',
+        role: 'admin',
+        status: 'inactive', // Requires super admin activation
+        createdAt: new Date().toISOString(),
+      });
+
+      // Password stored separately — only super admin can read this collection
+      await setDoc(doc(db, 'admin_secrets', uid), {
+        uid,
+        password, // Kept for reference as requested; only super_admin Firestore rule can read this
+        createdAt: new Date().toISOString(),
       });
     }
   };

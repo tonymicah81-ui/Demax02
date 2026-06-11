@@ -1,11 +1,8 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
+import { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "./AuthContext";
+import { AuthProvider, useAuth } from "./AuthContext";
 import { ThemeProvider } from "./ThemeContext";
+import { LoadingScreen } from "./components/ui/LoadingScreen";
 
 // Layouts
 import { MainLayout } from "./layouts/MainLayout";
@@ -14,6 +11,9 @@ import { MainLayout } from "./layouts/MainLayout";
 import { UserProtectedRoute } from "./components/guards/ProtectedRoute";
 import { AdminRoute } from "./components/guards/AdminRoute";
 import { SuperAdminRoute } from "./components/guards/SuperAdminRoute";
+
+// Vault Gate
+import { VaultGate } from "./components/vault/VaultGate";
 
 // Public Pages
 import LandingPage from "./pages/LandingPage";
@@ -52,63 +52,88 @@ import AdminProjects from "./pages/admin/Projects";
 import SuperDashboard from "./pages/superadmin/Dashboard";
 import ManageAdmins from "./pages/superadmin/ManageAdmins";
 import AuditLogs from "./pages/superadmin/AuditLogs";
+import PlatformSettings from "./pages/superadmin/PlatformSettings";
+
+function LoadingWrapper({ children }: { children: React.ReactNode }) {
+  const { loading } = useAuth();
+  const [minWait, setMinWait] = useState(true);
+
+  useEffect(() => {
+    const t = setTimeout(() => setMinWait(false), 800);
+    return () => clearTimeout(t);
+  }, []);
+
+  const visible = loading || minWait;
+
+  return (
+    <>
+      <LoadingScreen visible={visible} />
+      <div style={{ visibility: visible ? 'hidden' : 'visible' }}>
+        {children}
+      </div>
+    </>
+  );
+}
 
 function AppRoutes() {
   return (
     <Router>
-      <Routes>
-        {/* PUBLIC */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/terms" element={<TermsAndConditions />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        
-        {/* Hidden internal routes (Manual access only) */}
-        <Route path="/company/vault" element={<AdminSignupGate />} />
-        <Route path="/company/vault/login" element={<VaultLogin />} />
-        <Route path="/company/vault/signup" element={<VaultSignup />} />
-        <Route path="/company/staff" element={<StaffLogin />} />
+      <LoadingWrapper>
+        <Routes>
+          {/* PUBLIC */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/terms" element={<TermsAndConditions />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
 
-        {/* PROTECTED DASHBOARD ROUTES */}
-        <Route element={<UserProtectedRoute />}>
-          <Route element={<MainLayout />}>
-            {/* User Access */}
-            <Route path="/dashboard" element={<UserDashboard />} />
-            <Route path="/projects" element={<Projects />} />
-            <Route path="/marketplace" element={<Marketplace />} />
-            <Route path="/support" element={<Support />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/subscription" element={<Subscription />} />
-            <Route path="/wallet" element={<Wallet />} />
-            <Route path="/notifications" element={<Notifications />} />
-            <Route path="/cart" element={<Cart />} />
+          {/* VAULT — all vault routes wrapped in VaultGate */}
+          <Route path="/company/vault" element={<VaultGate><AdminSignupGate /></VaultGate>} />
+          <Route path="/company/vault/login" element={<VaultGate><VaultLogin /></VaultGate>} />
+          <Route path="/company/vault/signup" element={<VaultGate><VaultSignup /></VaultGate>} />
+          <Route path="/company/staff" element={<StaffLogin />} />
 
-            {/* Admin Access */}
-            <Route element={<AdminRoute />}>
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/users" element={<ManageUsers />} />
-              <Route path="/admin/users/:userId" element={<UserDetails />} />
-              <Route path="/admin/chats" element={<AdminChats />} />
-              <Route path="/admin/issues" element={<AdminIssues />} />
-              <Route path="/admin/marketplace" element={<ManageMarketplace />} />
-              <Route path="/admin/payments" element={<ManagePayments />} />
-              <Route path="/admin/fixes" element={<ManageFixes />} />
-              <Route path="/admin/broadcast" element={<BroadcastSystem />} />
-              <Route path="/admin/projects" element={<AdminProjects />} />
-            </Route>
+          {/* PROTECTED DASHBOARD ROUTES */}
+          <Route element={<UserProtectedRoute />}>
+            <Route element={<MainLayout />}>
+              {/* User Access */}
+              <Route path="/dashboard" element={<UserDashboard />} />
+              <Route path="/projects" element={<Projects />} />
+              <Route path="/marketplace" element={<Marketplace />} />
+              <Route path="/support" element={<Support />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/subscription" element={<Subscription />} />
+              <Route path="/wallet" element={<Wallet />} />
+              <Route path="/notifications" element={<Notifications />} />
+              <Route path="/cart" element={<Cart />} />
 
-            {/* Super Admin Access */}
-            <Route element={<SuperAdminRoute />}>
-              <Route path="/superadmin" element={<SuperDashboard />} />
-              <Route path="/superadmin/admins" element={<ManageAdmins />} />
-              <Route path="/superadmin/audit" element={<AuditLogs />} />
+              {/* Admin Access */}
+              <Route element={<AdminRoute />}>
+                <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin/users" element={<ManageUsers />} />
+                <Route path="/admin/users/:userId" element={<UserDetails />} />
+                <Route path="/admin/chats" element={<AdminChats />} />
+                <Route path="/admin/issues" element={<AdminIssues />} />
+                <Route path="/admin/marketplace" element={<ManageMarketplace />} />
+                <Route path="/admin/payments" element={<ManagePayments />} />
+                <Route path="/admin/fixes" element={<ManageFixes />} />
+                <Route path="/admin/broadcast" element={<BroadcastSystem />} />
+                <Route path="/admin/projects" element={<AdminProjects />} />
+              </Route>
+
+              {/* Super Admin Access */}
+              <Route element={<SuperAdminRoute />}>
+                <Route path="/superadmin" element={<SuperDashboard />} />
+                <Route path="/superadmin/admins" element={<ManageAdmins />} />
+                <Route path="/superadmin/audit" element={<AuditLogs />} />
+                <Route path="/superadmin/settings" element={<PlatformSettings />} />
+              </Route>
             </Route>
           </Route>
-        </Route>
 
-        {/* Catch all */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Catch all */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </LoadingWrapper>
     </Router>
   );
 }

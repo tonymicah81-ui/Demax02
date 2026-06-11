@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../../AuthContext";
 import { db, collection, query, where, onSnapshot, orderBy, limit, doc, updateDoc, serverTimestamp } from "../../firebase";
 import { Conversation, Message, sendMessage, editMessage, deleteMessage } from "../../lib/chatService";

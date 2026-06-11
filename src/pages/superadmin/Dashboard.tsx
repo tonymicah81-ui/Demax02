@@ -184,18 +184,18 @@ export default function SuperDashboard() {
 
          <div className="space-y-8">
             <Card className="bg-brand-accent text-white border-none shadow-2xl relative overflow-hidden">
-               <CardTitle className="text-white uppercase italic tracking-tighter">Authorized Personal</CardTitle>
+               <CardTitle className="text-white uppercase italic tracking-tighter">Super Admin</CardTitle>
                <div className="mt-8 space-y-6 relative z-10">
                   <div className="flex items-center gap-4">
-                     <div className="w-12 h-12 rounded-full bg-black/20 overflow-hidden border-2 border-white/20">
-                        <img src="https://picsum.photos/seed/tony/100/100" referrerPolicy="no-referrer" alt="Tony" />
+                     <div className="w-12 h-12 rounded-full bg-black/20 overflow-hidden border-2 border-white/20 flex items-center justify-center">
+                        <Settings className="w-6 h-6 text-white/70" />
                      </div>
                      <div>
-                        <p className="text-xs font-black uppercase tracking-tight">Tony Micah</p>
-                        <p className="text-[9px] font-black uppercase tracking-widest opacity-60">Source Architect</p>
+                        <p className="text-xs font-black uppercase tracking-tight">System Owner</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest opacity-60">Full Platform Access</p>
                      </div>
                   </div>
-                  <Button variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 uppercase italic text-[10px] font-black" onClick={() => window.location.href = '/admin/users'}>Manage Authorities</Button>
+                  <Button variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 uppercase italic text-[10px] font-black" onClick={() => window.location.href = '/superadmin/settings'}>Platform Settings</Button>
                </div>
                <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full blur-3xl pointer-events-none" />
             </Card>

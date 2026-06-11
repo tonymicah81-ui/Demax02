@@ -73,7 +73,7 @@ export default function Profile() {
                   <div>
                     <p className="text-[10px] text-slate-500 uppercase font-black">Initialized At</p>
                     <p className="text-sm font-bold text-brand-text-bold dark:text-white italic">
-                      {profile?.createdAt ? new Date(profile.createdAt.seconds * 1000).toLocaleDateString() : "Pending"}
+                      {profile?.createdAt ? new Date(typeof profile.createdAt === 'string' ? profile.createdAt : (profile.createdAt as any).seconds * 1000).toLocaleDateString() : "Pending"}
                     </p>
                   </div>
                 </div>

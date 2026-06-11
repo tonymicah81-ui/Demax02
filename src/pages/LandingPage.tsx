@@ -27,9 +27,12 @@ import {
 import { Logo } from "../components/ui/Logo";
 import { Banner } from "../photo";
 import { useTheme } from "../ThemeContext";
+import { usePlatformSetting } from "../lib/platformSettings";
 
 export default function LandingPage() {
   const { theme, toggleTheme } = useTheme();
+  const { data: generalSettings } = usePlatformSetting('general');
+  const supportEmail = generalSettings.supportEmail || 'support@durax.com';
 
   return (
     <div className="min-h-screen bg-brand-bg dark:bg-slate-950 flex flex-col transition-colors duration-500">
@@ -268,7 +271,7 @@ export default function LandingPage() {
             
             <div className="hidden lg:block text-[10px] font-mono text-slate-400 text-center uppercase tracking-widest leading-loose">
               Decentralized Architecture // Multi-Tenant // Security Verified <br />
-              <span className="text-brand-success opacity-60 font-black">System Ready: tonymicah81@gmail.com</span>
+              <a href={`mailto:${supportEmail}`} className="text-brand-success opacity-60 font-black hover:opacity-100 transition-opacity">{supportEmail}</a>
             </div>
 
             <div className="flex gap-10 text-xs font-bold text-slate-400 uppercase tracking-widest">
@@ -284,7 +287,7 @@ export default function LandingPage() {
                © 2026 DUREX TEAM PRO. ALL RIGHTS RESERVED.
              </div>
              <div className="flex items-center gap-6">
-               <span className="text-[10px] text-slate-500 font-mono">MD5: 8829-LEG-DT-XPR</span>
+               <span className="text-[10px] text-slate-500 font-mono">DUREX-TEAM-ENGINE-v1.2</span>
                <span className="text-xs text-brand-accent font-black tracking-tighter">SECURED BY FIREBASE_GCP</span>
              </div>
           </div>
