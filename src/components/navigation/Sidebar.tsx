@@ -108,7 +108,7 @@ export function Sidebar() {
             <span>{link.label}</span>
           </div>
           <div className="flex items-center gap-2">
-            {(link.label === "Chat Team" || link.label === "Signal Relays") && (
+            {(link.label === "Chat Team" || link.label === "Messages") && (
               <UnreadCountBadge isUserSide={link.label === "Chat Team"} />
             )}
             <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />

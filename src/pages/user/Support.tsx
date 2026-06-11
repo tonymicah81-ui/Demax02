@@ -87,9 +87,9 @@ export default function Support() {
   return (
     <div className="h-[calc(100vh-120px)] flex flex-col space-y-8">
       <div>
-        <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic leading-none">System_Relay</h1>
+        <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic leading-none">Support Chat</h1>
         <p className="text-brand-accent font-black mt-2 uppercase tracking-[0.2em] text-[10px] italic">
-          Secure Tunnel // Secure Signal Environment
+          Direct line to the Durex Team // Encrypted
         </p>
       </div>
 

@@ -1,12 +1,50 @@
 import { useState, useEffect } from 'react';
-import { db, doc, getDoc, setDoc, serverTimestamp } from '../firebase';
+import { db, doc, getDoc, setDoc, updateDoc, serverTimestamp } from '../firebase';
 
-export interface VaultSettings {
-  active: boolean;
-  pinHash: string;
-  updatedAt?: any;
+// ─── Vault (separate `vault` collection) ────────────────────────────────────
+export interface VaultConfig {
+  status: 'active' | 'inactive' | '';
+  pin: string;
+  lastTimeVisit: string;    // ISO date string | ''
+  countTryNumber: number;
+  lastLockTime: string;     // ISO date string | ''
 }
 
+export const VAULT_CONFIG_DEFAULT: VaultConfig = {
+  status: '',
+  pin: '',
+  lastTimeVisit: '',
+  countTryNumber: 0,
+  lastLockTime: '',
+};
+
+export async function loadVaultConfig(): Promise<VaultConfig> {
+  try {
+    const snap = await getDoc(doc(db, 'vault', 'config'));
+    if (snap.exists()) return { ...VAULT_CONFIG_DEFAULT, ...snap.data() } as VaultConfig;
+  } catch {
+    // Return default on any error
+  }
+  return { ...VAULT_CONFIG_DEFAULT };
+}
+
+export async function saveVaultConfig(data: Partial<VaultConfig>): Promise<void> {
+  await setDoc(doc(db, 'vault', 'config'), data, { merge: true });
+}
+
+export async function updateVaultTracking(data: {
+  lastTimeVisit?: string;
+  countTryNumber?: number;
+  lastLockTime?: string;
+}): Promise<void> {
+  try {
+    await updateDoc(doc(db, 'vault', 'config'), data);
+  } catch {
+    // Silently ignore — tracking is best-effort
+  }
+}
+
+// ─── Platform Settings (platform_settings collection) ───────────────────────
 export interface CloudinarySettings {
   cloudName: string;
   uploadPreset: string;
@@ -28,33 +66,16 @@ export interface GeneralSettings {
 }
 
 export interface PlatformSettings {
-  vault: VaultSettings;
   cloudinary: CloudinarySettings;
   loading: LoadingSettings;
   general: GeneralSettings;
 }
 
 const DEFAULTS: PlatformSettings = {
-  vault: { active: false, pinHash: '' },
   cloudinary: { cloudName: '', uploadPreset: '', apiKey: '' },
   loading: { effect: 'default', logoUrl: '', customHTML: '', customCSS: '' },
   general: { supportEmail: 'support@durax.com' },
 };
-
-export async function hashPin(pin: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(pin + 'durex_vault_salt');
-  const hash = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hash))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-export async function verifyPin(entered: string, storedHash: string): Promise<boolean> {
-  if (!storedHash) return false;
-  const hash = await hashPin(entered);
-  return hash === storedHash;
-}
 
 export async function loadSetting<K extends keyof PlatformSettings>(key: K): Promise<PlatformSettings[K]> {
   try {

@@ -9,8 +9,9 @@ import { Card, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../AuthContext';
 import {
-  loadSetting, saveSetting, hashPin,
-  VaultSettings, CloudinarySettings, LoadingSettings, GeneralSettings
+  loadSetting, saveSetting,
+  loadVaultConfig, saveVaultConfig,
+  CloudinarySettings, LoadingSettings, GeneralSettings
 } from '../../lib/platformSettings';
 import { db, doc, updateDoc, serverTimestamp } from '../../firebase';
 
@@ -48,11 +49,17 @@ export default function PlatformSettings() {
   // General settings
   const [generalData, setGeneralData] = useState<GeneralSettings>({ supportEmail: 'support@durax.com' });
 
-  // Vault settings
-  const [vaultData, setVaultData] = useState<VaultSettings>({ active: false, pinHash: '' });
+  // Vault settings (from `vault/config` collection)
+  const [vaultStatus, setVaultStatus] = useState<'active' | 'inactive' | ''>('');
+  const [vaultPinSet, setVaultPinSet] = useState(false);
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [showPin, setShowPin] = useState(false);
+  const [vaultInfo, setVaultInfo] = useState({
+    lastTimeVisit: '',
+    countTryNumber: 0,
+    lastLockTime: '',
+  });
 
   // Loading settings
   const [loadingData, setLoadingData] = useState<LoadingSettings>({ effect: 'default', logoUrl: '', customHTML: '', customCSS: '' });
@@ -67,19 +74,26 @@ export default function PlatformSettings() {
 
   useEffect(() => {
     loadSetting('general').then(setGeneralData);
-    loadSetting('vault').then(setVaultData);
     loadSetting('loading').then(setLoadingData);
     loadSetting('cloudinary').then(d => {
       if (d.cloudName) {
         setCloudinaryData(d);
       } else {
-        // Fallback to env variables if Firestore not set
         setCloudinaryData({
           cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '',
           uploadPreset: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || '',
           apiKey: import.meta.env.VITE_CLOUDINARY_API_KEY || '',
         });
       }
+    });
+    loadVaultConfig().then(config => {
+      setVaultStatus(config.status);
+      setVaultPinSet(!!config.pin);
+      setVaultInfo({
+        lastTimeVisit: config.lastTimeVisit || '',
+        countTryNumber: config.countTryNumber || 0,
+        lastLockTime: config.lastLockTime || '',
+      });
     });
     if (profile) setPersonalEmail((profile as any).personalEmail || '');
   }, [profile]);
@@ -101,12 +115,14 @@ export default function PlatformSettings() {
     }
   }
 
-  async function saveVaultToggle() {
+  async function toggleVault() {
+    if (!vaultPinSet) return showToast('Set a PIN first before activating', 'error');
     setSaving(true);
     try {
-      await saveSetting('vault', { active: !vaultData.active, pinHash: vaultData.pinHash });
-      setVaultData(prev => ({ ...prev, active: !prev.active }));
-      showToast(`Vault ${!vaultData.active ? 'activated' : 'deactivated'}`, 'success');
+      const newStatus = vaultStatus === 'active' ? 'inactive' : 'active';
+      await saveVaultConfig({ status: newStatus });
+      setVaultStatus(newStatus);
+      showToast(`Vault ${newStatus === 'active' ? 'activated' : 'deactivated'}`, 'success');
     } catch {
       showToast('Failed to update vault', 'error');
     } finally {
@@ -119,14 +135,27 @@ export default function PlatformSettings() {
     if (newPin !== confirmPin) return showToast('PINs do not match', 'error');
     setSaving(true);
     try {
-      const pinHash = await hashPin(newPin);
-      await saveSetting('vault', { pinHash, active: vaultData.active });
-      setVaultData(prev => ({ ...prev, pinHash }));
+      // Store plain PIN in Firestore — no backend to hash server-side
+      await saveVaultConfig({ pin: newPin });
+      setVaultPinSet(true);
       setNewPin('');
       setConfirmPin('');
       showToast('Vault PIN updated', 'success');
     } catch {
       showToast('Failed to update PIN', 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function clearVaultLock() {
+    setSaving(true);
+    try {
+      await saveVaultConfig({ countTryNumber: 0, lastLockTime: '' });
+      setVaultInfo(prev => ({ ...prev, countTryNumber: 0, lastLockTime: '' }));
+      showToast('Vault lock cleared', 'success');
+    } catch {
+      showToast('Failed to clear lock', 'error');
     } finally {
       setSaving(false);
     }
@@ -162,15 +191,13 @@ export default function PlatformSettings() {
     }
     setCloudinaryStatus('checking');
     try {
+      const fd = new FormData();
+      const blob = new Blob(['test'], { type: 'text/plain' });
+      fd.append('file', blob, 'test.txt');
+      fd.append('upload_preset', cloudinaryData.uploadPreset);
       const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudinaryData.cloudName}/image/upload`, {
         method: 'POST',
-        body: (() => {
-          const fd = new FormData();
-          const blob = new Blob(['test'], { type: 'text/plain' });
-          fd.append('file', blob, 'test.txt');
-          fd.append('upload_preset', cloudinaryData.uploadPreset);
-          return fd;
-        })(),
+        body: fd,
       });
       if (res.ok) {
         setCloudinaryStatus('ok');
@@ -268,10 +295,10 @@ export default function PlatformSettings() {
               <CardTitle className="uppercase italic tracking-tighter flex items-center gap-2">
                 <Mail className="w-4 h-4 text-brand-success" /> Your Personal Email
               </CardTitle>
-              <p className="text-sm text-slate-500 dark:text-slate-400">This email receives security alerts (e.g. vault lockouts). It is never shown publicly.</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">This email receives security alerts. It is never shown publicly.</p>
               <div className="grid md:grid-cols-2 gap-6 items-end">
                 <div className="space-y-2">
-                  <label className={labelClass}>Super Admin Notification Email</label>
+                  <label className={labelClass}>Notification Email</label>
                   <input
                     type="email"
                     value={personalEmail}
@@ -297,16 +324,17 @@ export default function PlatformSettings() {
                 <CardTitle className="uppercase italic tracking-tighter flex items-center gap-2">
                   <Shield className="w-4 h-4 text-brand-success" /> Vault Status
                 </CardTitle>
-                <StatusBadge ok={vaultData.active} label={vaultData.active ? 'Active' : 'Inactive'} />
+                <StatusBadge ok={vaultStatus === 'active'} label={vaultStatus === 'active' ? 'Active' : 'Inactive'} />
               </div>
 
               <div className="p-5 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-brand-border dark:border-white/5 space-y-3">
                 <p className="text-sm font-bold text-brand-text-bold dark:text-white">How the Vault works</p>
                 <ul className="text-[11px] text-slate-500 dark:text-slate-400 space-y-1.5 leading-relaxed">
-                  <li>• When <strong>Active</strong>: anyone visiting /company/vault must enter the PIN before seeing the login/signup pages</li>
-                  <li>• When <strong>Inactive</strong>: the vault gate is skipped and the pages are shown directly</li>
-                  <li>• After <strong>5 wrong attempts</strong>, the vault locks for 15 minutes and an alert is logged</li>
-                  <li>• The PIN is stored as a secure hash — never as plain text</li>
+                  <li>• <strong>Active</strong>: visitors must enter the PIN before seeing the login/signup pages</li>
+                  <li>• <strong>Inactive</strong>: vault gate is skipped — pages shown directly</li>
+                  <li>• After <strong>5 wrong attempts</strong>, the vault locks for 15 minutes (tracked in Firestore)</li>
+                  <li>• PIN is stored as plain text in Firestore (no backend available for hashing)</li>
+                  <li>• New staff register with role <code className="text-brand-accent">client</code> — you must manually set <code className="text-brand-accent">admin</code> or <code className="text-brand-accent">super_admin</code> in Firestore</li>
                 </ul>
               </div>
 
@@ -316,18 +344,18 @@ export default function PlatformSettings() {
                   <p className="text-[10px] text-slate-500 mt-0.5">Toggle to enable/disable the PIN gate</p>
                 </div>
                 <button
-                  onClick={saveVaultToggle}
-                  disabled={saving || !vaultData.pinHash}
+                  onClick={toggleVault}
+                  disabled={saving || !vaultPinSet}
                   className="text-brand-success disabled:opacity-40 disabled:cursor-not-allowed transition-transform hover:scale-105"
-                  title={!vaultData.pinHash ? 'Set a PIN first before activating' : ''}
+                  title={!vaultPinSet ? 'Set a PIN first before activating' : ''}
                 >
-                  {vaultData.active
+                  {vaultStatus === 'active'
                     ? <ToggleRight className="w-10 h-10" />
                     : <ToggleLeft className="w-10 h-10 text-slate-400" />}
                 </button>
               </div>
 
-              {!vaultData.pinHash && (
+              {!vaultPinSet && (
                 <div className="flex items-center gap-3 p-4 bg-amber-950/20 border border-amber-900/30 rounded-xl">
                   <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
                   <p className="text-amber-400 text-[10px] font-black uppercase tracking-widest">Set a PIN below before activating the vault</p>
@@ -335,11 +363,38 @@ export default function PlatformSettings() {
               )}
             </Card>
 
+            {/* Vault Tracking Info */}
+            <Card className="space-y-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="uppercase italic tracking-tighter flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-slate-400" /> Live Tracking
+                </CardTitle>
+                {vaultInfo.lastLockTime && (
+                  <Button onClick={clearVaultLock} disabled={saving} className="bg-red-600 hover:bg-red-700 text-white gap-2 text-[10px] h-8 px-4">
+                    <RefreshCw className="w-3 h-3" />
+                    Clear Lock
+                  </Button>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                {[
+                  { label: 'Last Visit', value: vaultInfo.lastTimeVisit ? new Date(vaultInfo.lastTimeVisit).toLocaleString() : 'Never' },
+                  { label: 'Failed Attempts', value: String(vaultInfo.countTryNumber || 0) },
+                  { label: 'Locked Until', value: vaultInfo.lastLockTime ? new Date(new Date(vaultInfo.lastLockTime).getTime() + 15 * 60 * 1000).toLocaleTimeString() : 'Not locked' },
+                ].map(stat => (
+                  <div key={stat.label} className="p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-brand-border dark:border-white/5">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
+                    <p className="text-xs font-bold text-brand-text-bold dark:text-white truncate">{stat.value}</p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
             <Card className="space-y-6">
               <CardTitle className="uppercase italic tracking-tighter flex items-center gap-2">
                 <Key className="w-4 h-4 text-brand-accent" /> Set / Change Vault PIN
               </CardTitle>
-              {vaultData.pinHash && (
+              {vaultPinSet && (
                 <div className="flex items-center gap-2">
                   <StatusBadge ok={true} label="PIN is set" />
                   <span className="text-[10px] text-slate-400">A PIN is currently configured. Fill the form below to change it.</span>
@@ -421,7 +476,7 @@ export default function PlatformSettings() {
                     placeholder="https://... (leave blank for default DT logo)"
                   />
                 </div>
-                <p className="text-[10px] text-slate-400">Used in all effects except Custom. Recommended: square PNG/SVG, min 200×200px.</p>
+                <p className="text-[10px] text-slate-400">Recommended: square PNG/SVG, min 200×200px.</p>
               </div>
             </Card>
 
@@ -430,7 +485,7 @@ export default function PlatformSettings() {
                 <CardTitle className="uppercase italic tracking-tighter flex items-center gap-2">
                   <Code2 className="w-4 h-4 text-brand-success" /> Custom HTML / CSS Design
                 </CardTitle>
-                <p className="text-[11px] text-slate-400 leading-relaxed">Paste your full loading screen design here. The HTML renders inside a centered container. CSS is injected into the page head.</p>
+                <p className="text-[11px] text-slate-400 leading-relaxed">Paste your full loading screen design here. HTML renders inside a centered container. CSS is injected into the page head.</p>
                 <div className="space-y-2">
                   <label className={labelClass}>HTML</label>
                   <textarea
@@ -470,13 +525,16 @@ export default function PlatformSettings() {
                   <Cloud className="w-4 h-4 text-brand-accent" /> Cloudinary Configuration
                 </CardTitle>
                 {cloudinaryStatus !== 'idle' && (
-                  <StatusBadge ok={cloudinaryStatus === 'ok'} label={cloudinaryStatus === 'ok' ? 'Connected' : cloudinaryStatus === 'checking' ? 'Checking...' : 'Not Connected'} />
+                  <StatusBadge
+                    ok={cloudinaryStatus === 'ok'}
+                    label={cloudinaryStatus === 'ok' ? 'Connected' : cloudinaryStatus === 'checking' ? 'Checking...' : 'Not Connected'}
+                  />
                 )}
               </div>
 
               <div className="p-4 bg-amber-950/10 border border-amber-900/20 rounded-xl">
                 <p className="text-amber-400 text-[10px] font-black uppercase tracking-widest mb-1">Important — After Saving</p>
-                <p className="text-[11px] text-slate-400">Once you save and verify the connection here, remove the Cloudinary keys from your <code className="text-brand-accent">.env</code> file. The platform will use these Firestore-stored values instead.</p>
+                <p className="text-[11px] text-slate-400">Once you save and verify the connection here, you can remove the Cloudinary keys from your <code className="text-brand-accent">.env</code> file. The platform reads Firestore first.</p>
               </div>
 
               <div className="grid md:grid-cols-2 gap-6">
@@ -507,7 +565,7 @@ export default function PlatformSettings() {
                     value={cloudinaryData.apiKey}
                     onChange={e => setCloudinaryData(p => ({ ...p, apiKey: e.target.value }))}
                     className={inputClass}
-                    placeholder="e.g. 833482958867845"
+                    placeholder="e.g. 123456789012345"
                   />
                 </div>
               </div>
@@ -515,13 +573,12 @@ export default function PlatformSettings() {
               <div className="flex flex-wrap gap-3">
                 <Button onClick={saveCloudinary} disabled={saving} className="bg-brand-accent hover:bg-brand-accent/90 text-white gap-2">
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  Save Credentials
+                  Save Cloudinary Settings
                 </Button>
                 <Button
                   onClick={testCloudinary}
                   disabled={cloudinaryStatus === 'checking'}
-                  variant="outline"
-                  className="gap-2 border-brand-success text-brand-success hover:bg-brand-success/10"
+                  className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-white hover:bg-slate-200 dark:hover:bg-slate-700 gap-2"
                 >
                   {cloudinaryStatus === 'checking'
                     ? <Loader2 className="w-4 h-4 animate-spin" />

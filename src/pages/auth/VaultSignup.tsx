@@ -115,7 +115,7 @@ export default function VaultSignup() {
           <div className="text-center">
             <Logo size="lg" className="mx-auto mb-6 bg-white/10 p-4 rounded-2xl inline-flex" showText={false} />
             <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter">Staff Registration</h2>
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] mt-3 bg-white/5 py-2 rounded-lg">Role: Admin // Status: Pending Activation</p>
+            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] mt-3 bg-white/5 py-2 rounded-lg">Status: Pending Activation // Requires Super Admin Approval</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">

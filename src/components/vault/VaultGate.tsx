@@ -1,34 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ShieldAlert, Lock, Loader2, AlertTriangle, XCircle } from 'lucide-react';
-import { loadSetting, verifyPin } from '../../lib/platformSettings';
-import { db, addDoc, collection, serverTimestamp } from '../../firebase';
+import { loadVaultConfig, updateVaultTracking } from '../../lib/platformSettings';
 import { Logo } from '../ui/Logo';
 
 const VAULT_SESSION_KEY = 'dt_vault_session';
-const VAULT_ATTEMPTS_KEY = 'dt_vault_attempts';
-const VAULT_LOCK_KEY = 'dt_vault_locked_until';
 const MAX_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
 
 interface VaultGateProps {
   children: React.ReactNode;
-}
-
-function getAttempts(): number {
-  return parseInt(localStorage.getItem(VAULT_ATTEMPTS_KEY) || '0', 10);
-}
-
-function setAttempts(n: number) {
-  localStorage.setItem(VAULT_ATTEMPTS_KEY, String(n));
-}
-
-function getLockExpiry(): number {
-  return parseInt(localStorage.getItem(VAULT_LOCK_KEY) || '0', 10);
-}
-
-function setLockExpiry(ts: number) {
-  localStorage.setItem(VAULT_LOCK_KEY, String(ts));
 }
 
 function isSessionUnlocked(): boolean {
@@ -37,27 +18,11 @@ function isSessionUnlocked(): boolean {
 
 function unlockSession() {
   sessionStorage.setItem(VAULT_SESSION_KEY, 'true');
-  localStorage.removeItem(VAULT_ATTEMPTS_KEY);
-  localStorage.removeItem(VAULT_LOCK_KEY);
-}
-
-async function recordFailedAttempts(attempts: number) {
-  try {
-    await addDoc(collection(db, 'vault_alerts'), {
-      type: 'failed_attempts',
-      attempts,
-      lockedUntil: new Date(Date.now() + LOCK_DURATION_MS).toISOString(),
-      timestamp: serverTimestamp(),
-      userAgent: navigator.userAgent,
-    });
-  } catch {
-    // Silent — Firestore rules may block unauthenticated writes
-  }
 }
 
 export function VaultGate({ children }: VaultGateProps) {
   const [status, setStatus] = useState<'loading' | 'open' | 'locked' | 'pin_entry'>('loading');
-  const [pinHash, setPinHash] = useState('');
+  const [vaultPin, setVaultPin] = useState('');
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(false);
@@ -65,46 +30,71 @@ export function VaultGate({ children }: VaultGateProps) {
   const lockTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    async function initialize() {
-      const lockExpiry = getLockExpiry();
-      if (lockExpiry > Date.now()) {
-        setLockRemaining(Math.ceil((lockExpiry - Date.now()) / 1000));
-        setStatus('locked');
-        startLockCountdown(lockExpiry);
+    initialize();
+    return () => {
+      if (lockTimerRef.current) clearInterval(lockTimerRef.current);
+    };
+  }, []);
+
+  async function initialize() {
+    try {
+      const config = await loadVaultConfig();
+
+      // Vault not active — pass straight through
+      if (config.status !== 'active') {
+        setStatus('open');
         return;
       }
 
-      try {
-        const vaultConfig = await loadSetting('vault');
-
-        if (!vaultConfig.active) {
-          setStatus('open');
-          return;
-        }
-
-        if (isSessionUnlocked()) {
-          setStatus('open');
-          return;
-        }
-
-        setPinHash(vaultConfig.pinHash);
-        setStatus('pin_entry');
-      } catch {
+      // No PIN set yet — pass through (super admin hasn't configured it)
+      if (!config.pin) {
         setStatus('open');
+        return;
       }
-    }
 
-    initialize();
-    return () => { if (lockTimerRef.current) clearInterval(lockTimerRef.current); };
-  }, []);
+      // Already unlocked this browser session
+      if (isSessionUnlocked()) {
+        setStatus('open');
+        return;
+      }
+
+      // Check lockout state
+      if (config.lastLockTime) {
+        const lockExpiry = new Date(config.lastLockTime).getTime() + LOCK_DURATION_MS;
+        const now = Date.now();
+
+        if (now < lockExpiry) {
+          // Still locked — show countdown
+          const remaining = Math.ceil((lockExpiry - now) / 1000);
+          setLockRemaining(remaining);
+          setStatus('locked');
+          startLockCountdown(lockExpiry);
+          return;
+        } else {
+          // Lock expired — reset tracking fields in Firestore
+          await updateVaultTracking({ countTryNumber: 0, lastLockTime: '' });
+        }
+      }
+
+      // Update last visit time
+      await updateVaultTracking({ lastTimeVisit: new Date().toISOString() });
+
+      setVaultPin(config.pin);
+      setStatus('pin_entry');
+    } catch {
+      // On any error, open the gate (fail open for usability; rules protect the data)
+      setStatus('open');
+    }
+  }
 
   function startLockCountdown(expiry: number) {
-    lockTimerRef.current = setInterval(() => {
+    lockTimerRef.current = setInterval(async () => {
       const remaining = Math.ceil((expiry - Date.now()) / 1000);
       if (remaining <= 0) {
         clearInterval(lockTimerRef.current!);
-        setAttempts(0);
-        localStorage.removeItem(VAULT_LOCK_KEY);
+        await updateVaultTracking({ countTryNumber: 0, lastLockTime: '' });
+        const config = await loadVaultConfig();
+        setVaultPin(config.pin);
         setStatus('pin_entry');
       } else {
         setLockRemaining(remaining);
@@ -120,24 +110,26 @@ export function VaultGate({ children }: VaultGateProps) {
     setError('');
 
     try {
-      const valid = await verifyPin(pin, pinHash);
-
-      if (valid) {
+      if (pin === vaultPin) {
+        // Correct PIN — reset tracking and unlock
+        await updateVaultTracking({ countTryNumber: 0, lastLockTime: '' });
         unlockSession();
         setStatus('open');
       } else {
-        const attempts = getAttempts() + 1;
-        setAttempts(attempts);
-        const remaining = MAX_ATTEMPTS - attempts;
+        // Wrong PIN — read current count from Firestore to be accurate across tabs
+        const config = await loadVaultConfig();
+        const newCount = (config.countTryNumber || 0) + 1;
+        const remaining = MAX_ATTEMPTS - newCount;
 
-        if (attempts >= MAX_ATTEMPTS) {
-          const lockExpiry = Date.now() + LOCK_DURATION_MS;
-          setLockExpiry(lockExpiry);
-          await recordFailedAttempts(attempts);
+        if (newCount >= MAX_ATTEMPTS) {
+          const lockTime = new Date().toISOString();
+          await updateVaultTracking({ countTryNumber: newCount, lastLockTime: lockTime });
+          const lockExpiry = new Date(lockTime).getTime() + LOCK_DURATION_MS;
           setLockRemaining(Math.ceil(LOCK_DURATION_MS / 1000));
           setStatus('locked');
           startLockCountdown(lockExpiry);
         } else {
+          await updateVaultTracking({ countTryNumber: newCount });
           setError(`ACCESS_DENIED — ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining`);
           setPin('');
         }
@@ -210,7 +202,9 @@ export function VaultGate({ children }: VaultGateProps) {
                     <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2">Lockout expires in</p>
                     <p className="text-3xl font-mono font-black text-red-400">{formatLock(lockRemaining)}</p>
                   </div>
-                  <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">System administrator has been notified</p>
+                  <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">
+                    Contact system administrator if locked out
+                  </p>
                 </motion.div>
               ) : (
                 <motion.div

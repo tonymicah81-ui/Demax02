@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db, onAuthStateChanged, doc, getDoc, onSnapshot, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, setDoc } from './firebase';
 
-export type UserRole = 'user' | 'admin' | 'super_admin';
+export type UserRole = 'user' | 'admin' | 'super_admin' | 'client';
 export type UserStatus = 'active' | 'inactive';
 
 export interface UserProfile {
@@ -10,11 +10,14 @@ export interface UserProfile {
   role: UserRole;
   status: UserStatus;
   username: string;
-  phone?: string;
   phoneNumber?: string;
   balance?: number;
   personalEmail?: string;
   createdAt?: string;
+}
+
+export interface AdminProfile extends UserProfile {
+  role: 'admin' | 'super_admin' | 'client';
 }
 
 interface AuthContextType {
@@ -24,16 +27,15 @@ interface AuthContextType {
   isAdmin: boolean;
   isSuperAdmin: boolean;
   signout: () => Promise<void>;
-  signin: (email: string, password: string) => Promise<any>;
+  signin: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData, type: 'user' | 'admin') => Promise<void>;
 }
 
-interface RegisterData {
+export interface RegisterData {
   email: string;
   password: string;
   username: string;
   phoneNumber?: string;
-  tfaEnabled?: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -86,11 +88,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Only 'admin' and 'super_admin' get admin access — 'client' is pending approval
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
   const isSuperAdmin = profile?.role === 'super_admin';
 
   const signin = async (email: string, password: string) => {
-    return await signInWithEmailAndPassword(auth, email, password);
+    await signInWithEmailAndPassword(auth, email, password);
   };
 
   const signout = async () => {
@@ -98,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const register = async (data: RegisterData, type: 'user' | 'admin') => {
-    const { email, password, username, phoneNumber, tfaEnabled } = data;
+    const { email, password, username, phoneNumber } = data;
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const uid = userCredential.user.uid;
 
@@ -108,28 +111,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         username,
         email,
         phoneNumber: phoneNumber || '',
-        tfaEnabled: tfaEnabled || false,
         role: 'user',
         status: 'active',
         balance: 0,
         createdAt: new Date().toISOString(),
       });
     } else {
-      // Vault / Staff registration — goes to admins collection
+      // Vault / Staff registration — role starts as 'client' (pending approval)
+      // Super admin must manually change to 'admin' or 'super_admin' in Firestore
       await setDoc(doc(db, 'admins', uid), {
         uid,
         username,
         email,
         phoneNumber: phoneNumber || '',
-        role: 'admin',
-        status: 'inactive', // Requires super admin activation
+        role: 'client',        // Pending — super admin must approve
+        status: 'inactive',    // Cannot log in until activated
         createdAt: new Date().toISOString(),
       });
 
-      // Password stored separately — only super admin can read this collection
+      // Password stored in separate collection — only super_admin Firestore rule can read
       await setDoc(doc(db, 'admin_secrets', uid), {
         uid,
-        password, // Kept for reference as requested; only super_admin Firestore rule can read this
+        password,
         createdAt: new Date().toISOString(),
       });
     }

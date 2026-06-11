@@ -74,9 +74,9 @@ export default function Notifications() {
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-brand-border dark:border-white/5">
         <div>
-          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic leading-none">Signal Stream</h1>
+          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic leading-none">Notifications</h1>
           <p className="text-brand-accent font-black mt-2 uppercase tracking-[0.2em] text-[10px] italic">
-            Automated Protocol Notifications // Alerts v2.1
+            System Alerts &amp; Updates
           </p>
         </div>
         {notifications.some(n => !n.read) && (
