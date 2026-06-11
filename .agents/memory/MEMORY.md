@@ -1,2 +1,3 @@
 - [Vault Architecture](vault-architecture.md) — vault uses `vault/config` Firestore doc; plain text PIN; all tracking in Firestore (Netlify = no backend).
 - [Role System](role-system.md) — vault signups get `client` role in `admins` collection; super admin manually promotes to `admin`/`super_admin` in Firestore.
+- [Chat Architecture](chat-architecture.md) — edit handled inside MessageBubble directly; deleted admin messages hidden from user view entirely; file upload uses per-file AbortController + localStorage cache.
