@@ -1,0 +1,186 @@
+import { useState, useEffect } from "react";
+import { 
+  Users, 
+  MessageSquare, 
+  AlertCircle, 
+  TrendingUp, 
+  ShieldCheck,
+  Activity,
+  ArrowUpRight,
+  Database,
+  Wallet,
+  Loader2
+} from "lucide-react";
+import { Card, CardTitle } from "../../components/ui/Card";
+import { Button } from "../../components/ui/Button";
+import { cn } from "../../utils/cn";
+import { collection, query, where, onSnapshot, getCountFromServer } from "firebase/firestore";
+import { db } from "../../firebase";
+import { motion } from "motion/react";
+
+export default function AdminDashboard() {
+  const [stats, setStats] = useState({
+    users: 0,
+    pendingFixes: 0,
+    pendingDeposits: 0,
+    unreadSignals: 0,
+    loading: true
+  });
+
+  useEffect(() => {
+    // We use onSnapshot for most to keep dashboard live
+    const unsubUsers = onSnapshot(collection(db, "users"), (snap) => {
+      setStats(prev => ({ ...prev, users: snap.size }));
+    });
+
+    const unsubFixes = onSnapshot(
+      query(collection(db, "fixes"), where("status", "in", ["placed", "under review"])),
+      (snap) => {
+        setStats(prev => ({ ...prev, pendingFixes: snap.size }));
+      }
+    );
+
+    const unsubDeposits = onSnapshot(
+      query(collection(db, "transactions"), where("type", "==", "deposit"), where("status", "==", "pending")),
+      (snap) => {
+        setStats(prev => ({ ...prev, pendingDeposits: snap.size }));
+      }
+    );
+
+    const unsubChats = onSnapshot(collection(db, "chats"), (snap) => {
+      let unread = 0;
+      snap.docs.forEach(doc => {
+        unread += (doc.data().unreadCount || 0);
+      });
+      setStats(prev => ({ ...prev, unreadSignals: unread, loading: false }));
+    });
+
+    return () => {
+      unsubUsers();
+      unsubFixes();
+      unsubDeposits();
+      unsubChats();
+    };
+  }, []);
+
+  const adminStats = [
+    { label: "Active Nodes", value: stats.users, icon: Users, color: "text-brand-accent", bg: "bg-brand-accent/10" },
+    { label: "Pending Fixes", value: stats.pendingFixes, icon: AlertCircle, color: "text-red-500", bg: "bg-red-500/10" },
+    { label: "Unread Signals", value: stats.unreadSignals, icon: MessageSquare, color: "text-amber-500", bg: "bg-amber-500/10" },
+    { label: "Pending Deposits", value: stats.pendingDeposits, icon: Wallet, color: "text-brand-success", bg: "bg-brand-success/10" },
+  ];
+
+  return (
+    <div className="space-y-10">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-brand-border dark:border-white/5">
+        <div>
+          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">Admin HQ</h1>
+          <p className="text-brand-accent font-black mt-2 uppercase tracking-[0.3em] text-[10px] italic">
+            Durex Control Protocol // Enterprise Monitoring
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+           <div className="px-4 py-2 bg-slate-900 border border-white/10 rounded-xl flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-brand-success animate-pulse" />
+              <span className="text-[10px] font-mono text-white uppercase tracking-widest font-black">Centralized Link::Connected</span>
+           </div>
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {adminStats.map((stat, i) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+          >
+            <Card className="hover:border-white/10 transition-all border-none shadow-xl bg-white dark:bg-slate-900">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 italic">{stat.label}</p>
+                  <p className="text-4xl font-black text-brand-text-bold dark:text-white italic tracking-tighter">{stat.value}</p>
+                </div>
+                <div className={cn("p-3 rounded-xl", stat.bg, stat.color)}>
+                  <stat.icon className="w-6 h-6" />
+                </div>
+              </div>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-8">
+         <Card className="lg:col-span-2 space-y-8">
+            <div className="flex items-center justify-between">
+               <CardTitle className="uppercase italic tracking-tighter">Operational Stream</CardTitle>
+               <div className="flex items-center gap-2 text-[10px] font-black text-brand-accent">
+                 <Database className="w-3 h-3" />
+                 <span>SYNCING_GCP_BETA</span>
+               </div>
+            </div>
+            
+            <div className="space-y-4">
+               {[1, 2, 3, 4].map((_, i) => (
+                 <div key={i} className="flex items-center justify-between p-5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 group hover:border-brand-accent/30 transition-all">
+                    <div className="flex items-center gap-4">
+                       <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-900 border border-brand-border dark:border-white/5 flex items-center justify-center text-slate-400 group-hover:text-brand-accent transition-colors">
+                         <Activity className="w-5 h-5" />
+                       </div>
+                       <div>
+                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1.5">Action Registry_{i + 100}</p>
+                         <p className="text-sm font-bold text-brand-text-bold dark:text-white uppercase tracking-tight italic">New Project Initialized: Fintech Hub</p>
+                       </div>
+                    </div>
+                    <div className="text-right">
+                       <p className="text-[10px] font-mono text-slate-400">17:34:43</p>
+                       <p className="text-[10px] font-black text-brand-success uppercase tracking-widest mt-1">Status::Verified</p>
+                    </div>
+                 </div>
+               ))}
+            </div>
+         </Card>
+
+         <Card className="bg-brand-primary text-white border-none shadow-2xl relative overflow-hidden group">
+            <div className="relative z-10 space-y-8">
+               <CardTitle className="text-white uppercase italic tracking-tighter">System Integrity</CardTitle>
+               
+               <div className="space-y-6">
+                  <div className="flex justify-between items-end">
+                     <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Server Capacity</p>
+                        <p className="text-2xl font-black italic">88.4%</p>
+                     </div>
+                     <TrendingUp className="text-brand-success w-6 h-6" />
+                  </div>
+                  <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
+                     <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: "88.4%" }}
+                        transition={{ duration: 1.5, ease: "easeOut" }}
+                        className="bg-brand-accent h-full shadow-[0_0_15px_rgba(59,130,246,0.8)]" 
+                     />
+                  </div>
+
+                  <div className="pt-6 border-t border-white/5 space-y-4">
+                     <div className="flex items-center gap-3">
+                        <ShieldCheck className="text-brand-success w-4 h-4" />
+                        <span className="text-[10px] font-bold uppercase tracking-widest">Auth_Middleware::Active</span>
+                     </div>
+                     <div className="flex items-center gap-3">
+                        <ShieldCheck className="text-brand-success w-4 h-4" />
+                        <span className="text-[10px] font-bold uppercase tracking-widest">Firestore_Grip::Enabled</span>
+                     </div>
+                  </div>
+               </div>
+
+               <Button variant="outline" className="w-full h-12 border-white/10 text-white hover:bg-white/5 text-[10px]">Generate Global Report <ArrowUpRight className="ml-2 w-3.5 h-3.5" /></Button>
+            </div>
+            
+            {/* Backdrop digital distortion */}
+            <div className="absolute -bottom-20 -right-20 w-80 h-80 bg-brand-accent/10 rounded-full blur-[100px] pointer-events-none group-hover:scale-110 transition-transform duration-1000" />
+         </Card>
+      </div>
+    </div>
+  );
+}

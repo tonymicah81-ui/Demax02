@@ -1,0 +1,200 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Standard client/user of the platform",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "username": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "balance": { "type": "number", "default": 0 },
+        "role": { "type": "string", "enum": ["user", "client", "admin", "super_admin"] },
+        "status": { "type": "string", "enum": ["active", "inactive"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role", "status"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Platform activity records for workers/admins",
+      "type": "object",
+      "properties": {
+        "adminId": { "type": "string" },
+        "adminEmail": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "entityId": { "type": "string" },
+        "entityType": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["adminId", "action", "createdAt"]
+    },
+    "SubscriptionModel": {
+      "title": "SubscriptionModel",
+      "description": "Recurring service plans",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "price"]
+    },
+    "Chat": {
+      "title": "Chat",
+      "description": "Support conversation",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "lastMessage": { "type": "string" },
+        "lastMessageAt": { "type": "string", "format": "date-time" },
+        "unreadCount": { "type": "number", "default": 0 },
+        "status": { "type": "string", "enum": ["active", "closed"] }
+      }
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Single chat message",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "senderRole": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Admin users with elevated privileges",
+      "type": "object",
+      "properties": {
+        "adminId": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["client", "admin", "super_admin"] },
+        "status": { "type": "string", "enum": ["inactive", "active"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "role", "status"]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "User's website project",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "domainName": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "domain bought", "email spam setup complete", "smartsupp working", "hosted", "delivered"] },
+        "expiryDate": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "name", "status"]
+    },
+    "Fix": {
+      "title": "Fix",
+      "description": "Project fix request",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["placed", "under review", "fix in progress", "completed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "projectId", "description", "status"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Marketplace category",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name"]
+    },
+    "SubCategory": {
+      "title": "SubCategory",
+      "description": "Marketplace sub-category",
+      "type": "object",
+      "properties": {
+        "categoryId": { "type": "string" },
+        "name": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["categoryId", "name"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Marketplace product",
+      "type": "object",
+      "properties": {
+        "categoryId": { "type": "string" },
+        "subCategoryId": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "description": { "type": "string" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["categoryId", "name", "price"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Financial record",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["deposit", "payment", "refund"] },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "approved", "declined", "completed"] },
+        "proofUrl": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "amount", "status", "type"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "In-app alerts",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "SystemConfig": {
+      "title": "SystemConfig",
+      "description": "Global system configurations like payment details",
+      "type": "object",
+      "properties": {
+        "paymentDetails": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": "User", "description": "User profiles" },
+    "/admins/{adminId}": { "schema": "Admin", "description": "Admin registration data" },
+    "/projects/{projectId}": { "schema": "Project", "description": "User projects" },
+    "/fixes/{fixId}": { "schema": "Fix", "description": "Project fix requests" },
+    "/categories/{categoryId}": { "schema": "Category", "description": "Marketplace categories" },
+    "/sub_categories/{subCategoryId}": { "schema": "SubCategory", "description": "Marketplace sub-categories" },
+    "/products/{productId}": { "schema": "Product", "description": "Marketplace products" },
+    "/transactions/{transactionId}": { "schema": "Transaction", "description": "Financial records" },
+    "/admin_notifications/{notificationId}": { "schema": "Notification", "description": "Notifications for admins" },
+    "/user_notifications/{notificationId}": { "schema": "Notification", "description": "Notifications for users" },
+    "/system_config/{configId}": { "schema": "SystemConfig", "description": "Global configuration" },
+    "/chats/{chatId}": { "schema": "Chat", "description": "Conversations" },
+    "/chats/{chatId}/messages/{messageId}": { "schema": "Message", "description": "Chat messages" },
+    "/audit_logs/{logId}": { "schema": "AuditLog", "description": "Administrative audit trail" }
+  }
+}

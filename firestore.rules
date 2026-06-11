@@ -1,0 +1,173 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ===============================================================
+    // GLOBAL HELPERS (Phase 3 Primitives)
+    // ===============================================================
+    
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    
+    function isSignedIn() { 
+      return request.auth != null; 
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function incoming() { 
+      return request.resource.data; 
+    }
+    
+    function existing() { 
+      return resource.data; 
+    }
+
+    // Auth lookup helpers
+    function isAdmin() {
+      let isExplicitAdmin = exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      let isRoleAdmin = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'super_admin'];
+      let isBootstrapAdmin = request.auth.token.email == "tonymicah81@gmail.com" && request.auth.token.email_verified == true;
+      return isSignedIn() && (isExplicitAdmin || isRoleAdmin || isBootstrapAdmin);
+    }
+
+    function isSuperAdmin() {
+       let isExplicitSuper = get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'super_admin';
+       let isRoleSuper = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin';
+       let isBootstrapSuper = request.auth.token.email == "tonymicah81@gmail.com" && request.auth.token.email_verified == true;
+       return isSignedIn() && (isExplicitSuper || isRoleSuper || isBootstrapSuper);
+    }
+
+    // ===============================================================
+    // ENTITY VALIDATION HELPERS
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.uid == request.auth.id
+        && data.username is string && data.username.size() >= 2 && data.username.size() <= 50
+        && data.email is string && data.email.size() <= 100
+        && data.role in ['user', 'client']
+        && data.status == 'active'
+        && data.balance == 0;
+    }
+
+    function isValidProject(data) {
+      return data.userId is string && data.userId.size() <= 128
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.status in ["pending", "domain bought", "email spam setup complete", "smartsupp working", "hosted", "delivered"]
+        && (data.domainName == null || (data.domainName is string && data.domainName.size() <= 255));
+    }
+
+    function isValidTransaction(data) {
+      return data.userId == request.auth.uid
+        && data.amount is number && data.amount > 0
+        && data.type in ['deposit', 'payment', 'refund']
+        && data.status == 'pending';
+    }
+
+    function isValidAuditLog(data) {
+      return data.adminId == request.auth.uid
+        && data.action is string && data.action.size() <= 100
+        && data.createdAt == request.time;
+    }
+
+    // ===============================================================
+    // COLLECTION RULES
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      
+      // Strict key checks for creation
+      allow create: if isSignedIn() && request.auth.uid == userId 
+        && isValidUser(incoming())
+        && incoming().keys().hasAll(['uid', 'username', 'email', 'role', 'status', 'balance'])
+        && incoming().keys().size() == 6;
+
+      allow update: if isSuperAdmin() || (
+        isSignedIn() && request.auth.uid == userId
+        && incoming().diff(existing()).affectedKeys().hasOnly(['username', 'phone', 'address', 'tfaEnabled'])
+        && incoming().username is string && incoming().username.size() <= 50
+      );
+    }
+
+    match /projects/{projectId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isAdmin() && isValidProject(incoming());
+      
+      allow update: if isAdmin() && (
+        // Action: Update Status
+        (incoming().diff(existing()).affectedKeys().hasOnly(['status', 'domainName', 'expiryDate']))
+      );
+      
+      allow delete: if isSuperAdmin();
+    }
+
+    match /transactions/{id} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      
+      allow create: if isVerified() && isValidTransaction(incoming())
+        && incoming().keys().hasAll(['userId', 'amount', 'type', 'status', 'createdAt'])
+        && incoming().createdAt == request.time;
+
+      allow update: if isAdmin() && (
+        // Action: Admin Review (Approve/Decline)
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'adminNote'])
+        && incoming().status in ['approved', 'declined', 'completed']
+      );
+    }
+
+    match /audit_logs/{id} {
+      allow read: if isSuperAdmin();
+      allow create: if isAdmin() && isValidAuditLog(incoming());
+    }
+
+    match /chats/{chatId} {
+      // Identity check: participants is a list of UIDs
+      function isParticipant() {
+        return request.auth.uid in resource.data.participants;
+      }
+
+      allow read: if isAdmin() || (isSignedIn() && isParticipant());
+      
+      allow create: if isSignedIn() 
+        && incoming().participants.size() >= 2
+        && request.auth.uid in incoming().participants;
+
+      allow update: if isAdmin() || (isSignedIn() && isParticipant() && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['lastMessage', 'lastMessageAt', 'unreadCount'])
+      ));
+
+      match /messages/{messageId} {
+        allow read: if isAdmin() || (isSignedIn() && get(/databases/$(database)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]));
+        allow create: if isSignedIn() 
+          && incoming().senderId == request.auth.uid
+          && incoming().text is string && incoming().text.size() <= 5000
+          && incoming().createdAt == request.time;
+      }
+    }
+
+    match /user_notifications/{id} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.userId == "all");
+      allow create: if isAdmin();
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+    }
+
+    // Marketplace collections
+    match /categories/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /sub_categories/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /products/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /subscription_models/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /system_config/{id} { allow read: if true; allow write: if isSuperAdmin(); }
+
+  }
+}

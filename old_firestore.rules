@@ -1,0 +1,124 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'super_admin'] ||
+        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role in ['admin', 'super_admin'] ||
+        (request.auth.token.email == "tonymicah81@gmail.com" && request.auth.token.email_verified == true)
+      );
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin' ||
+        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'super_admin' ||
+        (request.auth.token.email == "tonymicah81@gmail.com" && request.auth.token.email_verified == true)
+      );
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      // Only system can create user (handled by code), but we allow owner if they don't spoof balance/role
+      allow create: if isOwner(userId) && (!request.resource.data.diff({}).affectedKeys().hasAny(['balance', 'role']));
+      // Regular user cannot touch balance or role
+      allow update: if isSuperAdmin() || (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['balance', 'role']));
+    }
+
+    match /admins/{adminId} {
+      allow read: if isOwner(adminId) || isAdmin();
+      allow create: if isAuthenticated();
+      allow update: if isSuperAdmin();
+    }
+
+    match /vault/{vaultId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    match /projects/{projectId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /fixes/{fixId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sub_categories/{subId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /transactions/{id} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin(); // For approval/decline
+    }
+
+    match /admin_notifications/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    match /user_notifications/{id} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.userId == "all");
+      allow write: if isAdmin();
+    }
+
+    match /audit_logs/{id} {
+      allow read: if isSuperAdmin();
+      allow create: if isAdmin() && request.resource.data.adminId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /subscription_models/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /system_config/{id} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    match /chats/{chatId} {
+      allow read: if isAuthenticated() && (request.auth.uid in resource.data.participants || isAdmin());
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (request.auth.uid in resource.data.participants || isAdmin());
+
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants || isAdmin());
+        allow create: if isAuthenticated() && (request.auth.uid == request.resource.data.senderId);
+      }
+    }
+  }
+}
