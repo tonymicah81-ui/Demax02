@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "3BtqR7n_S4nXjQzUC9Bjg"
+uri = "file://PLATFORM_ROADMAP.md"
+type = "text"
+title = "Durex Team Platform — Full Roadmap"
