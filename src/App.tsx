@@ -6,6 +6,7 @@ import { LoadingScreen } from "./components/ui/LoadingScreen";
 
 // Layouts
 import { MainLayout } from "./layouts/MainLayout";
+import PublicLayout from "./pages/public/PublicLayout";
 
 // Guards
 import { UserProtectedRoute } from "./components/guards/ProtectedRoute";
@@ -24,6 +25,8 @@ import AdminSignupGate from "./pages/auth/AdminSignupGate";
 import VaultLogin from "./pages/auth/VaultLogin";
 import VaultSignup from "./pages/auth/VaultSignup";
 import StaffLogin from "./pages/auth/StaffLogin";
+import Store from "./pages/public/Store";
+import VerifyReceipt from "./pages/public/VerifyReceipt";
 
 // User Pages
 import UserDashboard from "./pages/user/Dashboard";
@@ -35,6 +38,8 @@ import Subscription from "./pages/user/Subscription";
 import Wallet from "./pages/user/Wallet";
 import Notifications from "./pages/user/Notifications";
 import Cart from "./pages/user/Cart";
+import Orders from "./pages/user/Orders";
+import UserSessions from "./pages/user/Sessions";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -47,6 +52,8 @@ import ManagePayments from "./pages/admin/Payments";
 import ManageFixes from "./pages/admin/Fixes";
 import BroadcastSystem from "./pages/admin/Broadcast";
 import AdminProjects from "./pages/admin/Projects";
+import AdminTransactions from "./pages/admin/AdminTransactions";
+import AdminSessions from "./pages/admin/Sessions";
 
 // Super Admin Pages
 import SuperDashboard from "./pages/superadmin/Dashboard";
@@ -68,7 +75,7 @@ function LoadingWrapper({ children }: { children: React.ReactNode }) {
   return (
     <>
       <LoadingScreen visible={visible} />
-      <div style={{ visibility: visible ? 'hidden' : 'visible' }}>
+      <div style={{ visibility: visible ? "hidden" : "visible" }}>
         {children}
       </div>
     </>
@@ -80,11 +87,17 @@ function AppRoutes() {
     <Router>
       <LoadingWrapper>
         <Routes>
-          {/* PUBLIC */}
+          {/* PUBLIC — no auth required */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/terms" element={<TermsAndConditions />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/verify/:receiptNumber" element={<VerifyReceipt />} />
+
+          {/* PUBLIC STORE — browsable without login, with PublicLayout navbar */}
+          <Route element={<PublicLayout />}>
+            <Route path="/store" element={<Store />} />
+          </Route>
 
           {/* VAULT — all vault routes wrapped in VaultGate */}
           <Route path="/company/vault" element={<VaultGate><AdminSignupGate /></VaultGate>} />
@@ -105,6 +118,8 @@ function AppRoutes() {
               <Route path="/wallet" element={<Wallet />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/cart" element={<Cart />} />
+              <Route path="/orders" element={<Orders />} />
+              <Route path="/sessions" element={<UserSessions />} />
 
               {/* Admin Access */}
               <Route element={<AdminRoute />}>
@@ -118,6 +133,8 @@ function AppRoutes() {
                 <Route path="/admin/fixes" element={<ManageFixes />} />
                 <Route path="/admin/broadcast" element={<BroadcastSystem />} />
                 <Route path="/admin/projects" element={<AdminProjects />} />
+                <Route path="/admin/transactions" element={<AdminTransactions />} />
+                <Route path="/admin/sessions" element={<AdminSessions />} />
               </Route>
 
               {/* Super Admin Access */}

@@ -29,8 +29,8 @@ service cloud.firestore {
       return resource.data;
     }
 
-    // An admin is someone in the `admins` collection with role 'admin' or 'super_admin'.
-    // 'client' role = pending approval — does NOT grant admin access.
+    // Admin: in admins collection with role 'admin' or 'super_admin'
+    // 'client' = pending approval — does NOT grant admin access
     function isAdmin() {
       return isSignedIn() && (
         (
@@ -52,13 +52,6 @@ service cloud.firestore {
           exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin'
         )
-      );
-    }
-
-    function isActiveAdmin() {
-      return isAdmin() && (
-        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.status == 'active' ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'active'
       );
     }
 
@@ -88,28 +81,24 @@ service cloud.firestore {
 
     function isValidTransaction(data) {
       return data.userId == request.auth.uid
-        && data.amount is number && data.amount > 0
-        && data.type in ['deposit', 'payment', 'refund']
-        && data.status == 'pending';
+        && data.amount is number
+        && data.type in ['deposit', 'payment', 'refund', 'adjustment']
+        && (
+          (data.type == 'deposit' && data.amount > 0 && data.status == 'pending') ||
+          (data.type == 'payment' && data.status == 'completed') ||
+          (data.type == 'refund' && data.status == 'completed') ||
+          (data.type == 'adjustment')
+        );
     }
 
     // ═══════════════════════════════════════════════════════════════
     // VAULT — PIN gate config + attempt tracking
-    // Collection: vault, Document: config
-    // Fields: status, pin, lastTimeVisit, countTryNumber, lastLockTime
     // ═══════════════════════════════════════════════════════════════
 
     match /vault/{docId} {
-      // Public read — vault gate needs status & PIN to function (no backend available)
       allow read: if true;
-
-      // Super admin creates/fully manages the vault config
       allow create: if isSuperAdmin();
       allow delete: if isSuperAdmin();
-
-      // Super admin can update anything.
-      // Unauthenticated vault gate can ONLY update the three tracking fields
-      // (lastTimeVisit, countTryNumber, lastLockTime) — never the PIN or status.
       allow update: if isSuperAdmin() || (
         docId == 'config' &&
         incoming().diff(existing()).affectedKeys()
@@ -118,7 +107,7 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // USERS COLLECTION
+    // USERS
     // ═══════════════════════════════════════════════════════════════
 
     match /users/{userId} {
@@ -128,7 +117,7 @@ service cloud.firestore {
         && isValidUser(incoming())
         && incoming().keys().hasAll(['uid', 'username', 'email', 'phoneNumber', 'role', 'status', 'balance', 'createdAt']);
 
-      allow update: if isSuperAdmin() || (
+      allow update: if isSuperAdmin() || isAdmin() || (
         isSignedIn() && request.auth.uid == userId
         && incoming().diff(existing()).affectedKeys()
             .hasOnly(['username', 'phoneNumber', 'address'])
@@ -139,22 +128,17 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // ADMINS COLLECTION
-    // Roles: 'client' (pending), 'admin', 'super_admin'
+    // ADMINS
     // ═══════════════════════════════════════════════════════════════
 
     match /admins/{adminId} {
       allow read: if isSignedIn() && (request.auth.uid == adminId || isSuperAdmin());
 
-      // Vault signup: new staff register with role 'client', status 'inactive'
-      // Super admin then manually changes role to 'admin' or 'super_admin' in Firestore
       allow create: if isSignedIn() && request.auth.uid == adminId
         && incoming().uid == request.auth.uid
         && incoming().role == 'client'
         && incoming().status == 'inactive';
 
-      // Super admin can update any field on any admin
-      // Admin/client can only update their own non-sensitive profile fields
       allow update: if isSuperAdmin() || (
         isSignedIn() && request.auth.uid == adminId
         && incoming().diff(existing()).affectedKeys()
@@ -165,7 +149,7 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // ADMIN SECRETS — passwords stored separately, super admin only
+    // ADMIN SECRETS
     // ═══════════════════════════════════════════════════════════════
 
     match /admin_secrets/{adminId} {
@@ -197,10 +181,14 @@ service cloud.firestore {
       allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow get:  if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
 
-      allow create: if isVerified() && isValidTransaction(incoming())
-        && incoming().keys().hasAll(['userId', 'amount', 'type', 'status', 'createdAt']);
+      // Users can create deposits (pending) and checkout payments (completed)
+      // Admins can create any transaction type (adjustments, refunds)
+      allow create: if isAdmin() || (
+        isSignedIn() && isValidTransaction(incoming())
+        && incoming().keys().hasAll(['userId', 'amount', 'type', 'status', 'createdAt'])
+      );
 
-      // Admin can approve/decline; once approved/declined, immutable
+      // Admin can approve/decline deposits
       allow update: if isAdmin()
         && existing().status == 'pending'
         && incoming().diff(existing()).affectedKeys()
@@ -209,11 +197,78 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // ORDERS
+    // ═══════════════════════════════════════════════════════════════
+
+    match /orders/{id} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // RECEIPTS — public read for verification, user creates own
+    // ═══════════════════════════════════════════════════════════════
+
+    match /receipts/{id} {
+      allow read: if true;
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SESSIONS — 48h login session tracking
+    // ═══════════════════════════════════════════════════════════════
+
+    match /sessions/{sessionId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow update: if isAdmin() || (
+        isSignedIn() && resource.data.userId == request.auth.uid
+        && incoming().diff(existing()).affectedKeys()
+            .hasOnly(['lastActive', 'active', 'revokedAt', 'expiresAt'])
+      );
+      allow delete: if isSuperAdmin();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // VISITOR CARTS — anonymous / pre-login cart
+    // Non-sensitive data: product IDs and names only
+    // ═══════════════════════════════════════════════════════════════
+
+    match /visitor_carts/{id} {
+      allow read, write: if true;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // MARKETPLACE VIEWS — public product view tracking
+    // ═══════════════════════════════════════════════════════════════
+
+    match /marketplace_views/{id} {
+      allow create: if true;
+      allow read: if isAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // CARTS — authenticated user cart items
+    // ═══════════════════════════════════════════════════════════════
+
+    match /carts/{id} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // AUDIT LOGS
     // ═══════════════════════════════════════════════════════════════
 
     match /audit_logs/{id} {
-      allow read: if isSuperAdmin();
+      allow read: if isAdmin();
       allow create: if isAdmin()
         && incoming().adminId == request.auth.uid
         && incoming().action is string && incoming().action.size() <= 200;
@@ -251,7 +306,7 @@ service cloud.firestore {
       allow delete: if isSuperAdmin();
     }
 
-    // Legacy chats collection (kept for backward compat)
+    // Legacy chats collection
     match /chats/{chatId} {
       function isParticipant() {
         return request.auth.uid in resource.data.participants;
@@ -281,8 +336,17 @@ service cloud.firestore {
       allow read: if isSignedIn() && (
         resource.data.userId == request.auth.uid || resource.data.userId == 'all'
       );
-      allow create: if isAdmin();
+      // Admin OR the user themselves (for checkout notifications)
+      allow create: if isAdmin() || (isSignedIn() && incoming().userId == request.auth.uid);
       allow update: if isSignedIn() && resource.data.userId == request.auth.uid
+        && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+      allow delete: if isSuperAdmin();
+    }
+
+    match /admin_notifications/{id} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() || isSignedIn();
+      allow update: if isAdmin()
         && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
       allow delete: if isSuperAdmin();
     }
@@ -291,32 +355,27 @@ service cloud.firestore {
     // MARKETPLACE
     // ═══════════════════════════════════════════════════════════════
 
-    match /categories/{id}         { allow read: if true; allow write: if isAdmin(); }
-    match /sub_categories/{id}     { allow read: if true; allow write: if isAdmin(); }
-    match /products/{id}           { allow read: if true; allow write: if isAdmin(); }
-    match /subscription_models/{id}{ allow read: if true; allow write: if isAdmin(); }
+    match /categories/{id}          { allow read: if true; allow write: if isAdmin(); }
+    match /sub_categories/{id}      { allow read: if true; allow write: if isAdmin(); }
+    match /products/{id}            { allow read: if true; allow write: if isAdmin(); }
+    match /subscription_models/{id} { allow read: if true; allow write: if isAdmin(); }
 
     // ═══════════════════════════════════════════════════════════════
-    // SYSTEM CONFIG (payment details etc.)
+    // FIXES / BUG REPORTS
     // ═══════════════════════════════════════════════════════════════
 
-    match /system_config/{id} {
-      allow read: if isSignedIn();
-      allow write: if isSuperAdmin();
+    match /fixes/{id} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow update: if isAdmin() || (
+        isSignedIn() && resource.data.userId == request.auth.uid
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+      );
+      allow delete: if isSuperAdmin();
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // PLATFORM SETTINGS — super admin managed, publicly readable
-    // (needed for loading screen, support email display, Cloudinary config)
-    // ═══════════════════════════════════════════════════════════════
-
-    match /platform_settings/{docId} {
-      allow read: if true;
-      allow write: if isSuperAdmin();
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // ISSUES / BUG REPORTS
+    // ISSUES
     // ═══════════════════════════════════════════════════════════════
 
     match /issues/{id} {
@@ -330,25 +389,6 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // ORDERS / CART
-    // ═══════════════════════════════════════════════════════════════
-
-    match /orders/{id} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
-      allow update: if isAdmin();
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid
-        && resource.data.status == 'cart';
-    }
-
-    match /cart_items/{id} {
-      allow read:   if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-    }
-
-    // ═══════════════════════════════════════════════════════════════
     // SUBSCRIPTIONS
     // ═══════════════════════════════════════════════════════════════
 
@@ -357,6 +397,24 @@ service cloud.firestore {
       allow create: if isAdmin();
       allow update: if isAdmin();
       allow delete: if isSuperAdmin();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SYSTEM CONFIG
+    // ═══════════════════════════════════════════════════════════════
+
+    match /system_config/{id} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // PLATFORM SETTINGS — publicly readable (loading screen, Cloudinary config)
+    // ═══════════════════════════════════════════════════════════════
+
+    match /platform_settings/{docId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
     }
 
   }

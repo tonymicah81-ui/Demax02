@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db, onAuthStateChanged, doc, getDoc, onSnapshot, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, setDoc } from './firebase';
+import { createSession, clearCurrentSession, validateAndRefreshSession, getLocalSessionExpiry } from './lib/sessionService';
+import { transferVisitorCartToUser } from './lib/visitorCart';
 
 export type UserRole = 'user' | 'admin' | 'super_admin' | 'client';
 export type UserStatus = 'active' | 'inactive';
@@ -26,6 +28,7 @@ interface AuthContextType {
   loading: boolean;
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  sessionExpiresAt: string | null;
   signout: () => Promise<void>;
   signin: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData, type: 'user' | 'admin') => Promise<void>;
@@ -44,6 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionExpiresAt, setSessionExpiresAt] = useState<string | null>(getLocalSessionExpiry());
 
   useEffect(() => {
     let unsubscribeProfile: (() => void) | null = null;
@@ -58,6 +62,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (u) {
         try {
+          // Validate existing session
+          const { valid, expiresAt } = await validateAndRefreshSession();
+          if (expiresAt) setSessionExpiresAt(expiresAt);
+          if (!valid) {
+            // Session invalid or expired — sign out silently
+            await signOut(auth);
+            return;
+          }
+
           const userRef = doc(db, 'users', u.uid);
           const adminRef = doc(db, 'admins', u.uid);
 
@@ -88,15 +101,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Only 'admin' and 'super_admin' get admin access — 'client' is pending approval
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
   const isSuperAdmin = profile?.role === 'super_admin';
 
   const signin = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    const uid = cred.user.uid;
+
+    // Determine role from Firestore
+    let role = 'user';
+    try {
+      const adminSnap = await getDoc(doc(db, 'admins', uid));
+      if (adminSnap.exists()) {
+        role = adminSnap.data().role || 'client';
+      }
+    } catch {}
+
+    // Create session + transfer visitor cart (fire and forget)
+    try {
+      const expiresAt = await createSession(uid, role).then(() => getLocalSessionExpiry());
+      if (expiresAt) setSessionExpiresAt(expiresAt);
+    } catch {}
+
+    try {
+      await transferVisitorCartToUser(uid);
+    } catch {}
   };
 
   const signout = async () => {
+    await clearCurrentSession();
+    setSessionExpiresAt(null);
     await signOut(auth);
   };
 
@@ -116,20 +150,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         balance: 0,
         createdAt: new Date().toISOString(),
       });
+
+      // Create session + transfer visitor cart
+      try {
+        const expiresAt = await createSession(uid, 'user').then(() => getLocalSessionExpiry());
+        if (expiresAt) setSessionExpiresAt(expiresAt);
+      } catch {}
+
+      try {
+        await transferVisitorCartToUser(uid);
+      } catch {}
     } else {
-      // Vault / Staff registration — role starts as 'client' (pending approval)
-      // Super admin must manually change to 'admin' or 'super_admin' in Firestore
       await setDoc(doc(db, 'admins', uid), {
         uid,
         username,
         email,
         phoneNumber: phoneNumber || '',
-        role: 'client',        // Pending — super admin must approve
-        status: 'inactive',    // Cannot log in until activated
+        role: 'client',
+        status: 'inactive',
         createdAt: new Date().toISOString(),
       });
 
-      // Password stored in separate collection — only super_admin Firestore rule can read
       await setDoc(doc(db, 'admin_secrets', uid), {
         uid,
         password,
@@ -139,7 +180,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, isAdmin, isSuperAdmin, signin, signout, register }}>
+    <AuthContext.Provider value={{
+      user, profile, loading, isAdmin, isSuperAdmin, sessionExpiresAt,
+      signin, signout, register
+    }}>
       {children}
     </AuthContext.Provider>
   );
