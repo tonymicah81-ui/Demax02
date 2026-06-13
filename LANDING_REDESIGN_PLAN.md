@@ -221,11 +221,117 @@ The infinite marquee uses pure CSS `@keyframes marquee` — no JS needed.
 | 8 | Featured products improvement | Small |
 | 9 | Footer expansion | Small |
 
-**Total: ~1 full landing page rebuild. All in `LandingPage.tsx` + `PublicLayout.tsx`.**
+---
+
+### Phase 10 — Store / Marketplace Mobile Fix + Visual Upgrade
+
+**What's broken now:**
+- Categories sidebar is desktop-only — completely disappears on mobile with no replacement
+- Search bar is too wide on small screens
+- No way to filter or browse by category on a phone
+- Product grid has no entrance animations on filter change
+
+**What changes:**
+
+**Mobile filter system:**
+- On mobile (`< lg`): hide the sidebar entirely
+- Replace with a horizontal scrollable pill row at the top: `[All] [Websites] [E-Commerce] [Bots] [Templates]...`
+- Active pill gets filled accent color
+- Sub-categories appear as a second pill row below when a category is selected
+- Smooth `AnimatePresence` transition when sub-row appears/disappears
+
+**Search bar:**
+- On mobile: full-width row above the category pills
+- Expand/collapse animation when focused
+
+**Product grid:**
+- Add `AnimatePresence` so cards animate out/in when filter changes (not just on load)
+- Add a `layoutId` per product so they smoothly reposition on filter
+
+**Store header:**
+- On mobile: stack the title and search/cart button vertically
+- Cart count badge stays visible at all times (move to top-right corner on mobile)
+
+**Empty state:**
+- Replace the simple opacity-30 div with a proper illustrated empty state — icon, heading, "Clear filters" button
+
+**Files:**
+- `src/pages/public/Store.tsx` — mobile filters + animation improvements
+
+---
+
+### Phase 11 — Terms & Legal Page Full Rebuild
+
+**What's broken now:**
+- `h-screen overflow-hidden` layout completely breaks on mobile (content is cut off, can't scroll)
+- Sidebar navigation is desktop-only — no mobile fallback
+- Header links (`Marketplace`, `Builds`, `Support`) are dead `<span>` tags
+- Only ONE section of content is actually written — all others are empty when clicked
+- No dark mode support
+- Compliance ID `DT-8829-LEG` contains the old hardcoded PIN number — must be replaced
+- "I Accept Terms" and "Download PDF" buttons do nothing
+
+**What changes:**
+
+**Layout fix:**
+- Remove `h-screen overflow-hidden` — let the page scroll naturally
+- Integrate into the standard `PublicLayout` (shared nav with mobile menu) — remove the custom header
+- Desktop: keep the sidebar + main content side-by-side
+- Mobile: sidebar becomes a sticky top accordion/tab row that collapses sections inline
+
+**Navigation:**
+- Replace dead `<span>` links with real `<Link>` components using react-router-dom
+- Header replaced entirely by `PublicLayout` nav (consistent with Store page)
+
+**Content — fill all 6 sections properly:**
+1. **Introduction** — what Durex Team is, who the agreement is between, effective date
+2. **Service Level Agreement** — uptime expectations, support response times, what "delivered" means
+3. **Liability & Responsibility** — keep existing content, clean up language, remove old compliance ID
+4. **Payments & Rates** — starting prices ($60), subscription billing, refund window (7 days), rate change notice (30 days)
+5. **Multi-Tenant Usage** — what multi-tenant means, reseller rules, data isolation guarantee
+6. **Privacy Policy** — data collected, Firebase/Cloudinary processors, no data selling, contact for deletion
+
+**New compliance ID:** `DT-LEG-2026` (removes the old PIN reference)
+
+**Dark mode:** Full dark mode support using existing `dark:` Tailwind classes
+
+**Buttons:**
+- "Back to Home" replaces "I Accept Terms" (which has no function)
+- "Print Page" replaces "Download PDF" — uses `window.print()` with `@media print` styles
+
+**Mobile accordion:**
+- Each section becomes an expandable item with a chevron toggle
+- Smooth height animation using Framer Motion `AnimatePresence`
+- Active section highlighted
+
+**Files:**
+- `src/pages/TermsAndConditions.tsx` — full rebuild
+
+---
+
+## Updated Execution Order (All 11 Phases)
+
+| Phase | Name | Effort | File |
+|---|---|---|---|
+| 1 | Navigation — mobile menu | Small | `LandingPage.tsx` + `PublicLayout.tsx` |
+| 2 | Hero upgrade | Small | `LandingPage.tsx` |
+| 3 | Services showcase | Medium | `LandingPage.tsx` |
+| 4 | Telegram bot section | Medium | `LandingPage.tsx` |
+| 5 | Pricing comparison | Medium | `LandingPage.tsx` |
+| 6 | Subscriptions preview | Small | `LandingPage.tsx` |
+| 7 | Trust strip + stats | Small | `LandingPage.tsx` |
+| 8 | Featured products | Small | `LandingPage.tsx` |
+| 9 | Footer expansion | Small | `LandingPage.tsx` |
+| 10 | Store mobile fix + animations | Medium | `Store.tsx` |
+| 11 | Terms & Legal rebuild | Medium | `TermsAndConditions.tsx` |
+
+**Total: 3 files fully rebuilt. All public-facing pages covered.**
 
 ---
 
 ## Files Modified
 
-- `src/pages/LandingPage.tsx` — full rebuild
-- `src/pages/public/PublicLayout.tsx` — mobile menu added
+- `src/pages/LandingPage.tsx` — full rebuild (Phases 1–9)
+- `src/pages/public/PublicLayout.tsx` — mobile menu (Phase 1)
+- `src/pages/public/Store.tsx` — mobile filters + animations (Phase 10)
+- `src/pages/TermsAndConditions.tsx` — full rebuild (Phase 11)
