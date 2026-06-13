@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   User, Wallet, Activity, Shield, ArrowLeft, Globe, Clock,
   Receipt, Package, Monitor, LogOut, DollarSign, Ban,
-  CheckCircle2, Loader2, ChevronRight, AlertCircle, FileText
+  CheckCircle2, Loader2, ChevronRight, AlertCircle, FileText, Mail, Tag, Gift
 } from "lucide-react";
 import { db, doc, onSnapshot, collection, query, where, orderBy, getDocs, addDoc, updateDoc, serverTimestamp } from "../../firebase";
 import { cn } from "../../utils/cn";
@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../../AuthContext";
 import { revokeSessionByAdmin } from "../../lib/sessionService";
 
-type Tab = "overview" | "projects" | "transactions" | "orders" | "sessions" | "actions";
+type Tab = "overview" | "projects" | "transactions" | "orders" | "sessions" | "actions" | "email";
 
 const STATUS_STYLE: Record<string, string> = {
   completed: "bg-brand-success/10 text-brand-success",
@@ -22,6 +22,150 @@ const STATUS_STYLE: Record<string, string> = {
   declined: "bg-red-500/10 text-red-500",
   failed: "bg-red-500/10 text-red-500",
 };
+
+function EmailUserPanel({ userId, userEmail, adminId }: { userId: string; userEmail: string; adminId: string }) {
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  async function handleSend(e: React.FormEvent) {
+    e.preventDefault();
+    setSending(true);
+    try {
+      await addDoc(collection(db, 'mail_logs'), {
+        adminId,
+        recipientUserId: userId,
+        to: userEmail,
+        subject,
+        html: body,
+        sentAt: serverTimestamp(),
+        type: 'direct',
+      });
+      setSent(true);
+      setSubject('');
+      setBody('');
+      setTimeout(() => setSent(false), 3000);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSend} className="space-y-4">
+      <div className="space-y-2">
+        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Subject</label>
+        <input
+          value={subject}
+          onChange={e => setSubject(e.target.value)}
+          required
+          className="w-full bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-xl p-4 text-sm font-bold focus:outline-none focus:border-brand-accent transition-all"
+          placeholder="Email subject..."
+        />
+      </div>
+      <div className="space-y-2">
+        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Message (HTML supported)</label>
+        <textarea
+          value={body}
+          onChange={e => setBody(e.target.value)}
+          required
+          rows={5}
+          className="w-full bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-xl p-4 text-sm font-bold focus:outline-none focus:border-brand-accent transition-all resize-none"
+          placeholder="Message body..."
+        />
+      </div>
+      <Button type="submit" disabled={sending} className="gap-2 text-[10px]">
+        {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+        {sent ? 'Sent!' : 'Send Email'}
+      </Button>
+    </form>
+  );
+}
+
+function IssueCouponPanel({ userId, userEmail }: { userId: string; userEmail: string }) {
+  const [code, setCode] = useState('');
+  const [discount, setDiscount] = useState('10');
+  const [type, setType] = useState<'percent' | 'fixed'>('percent');
+  const [issuing, setIssuing] = useState(false);
+  const [done, setDone] = useState(false);
+
+  function genCode() {
+    setCode('GIFT-' + Math.random().toString(36).slice(2, 8).toUpperCase());
+  }
+
+  async function handleIssue(e: React.FormEvent) {
+    e.preventDefault();
+    setIssuing(true);
+    try {
+      await addDoc(collection(db, 'coupons'), {
+        code,
+        discountType: type,
+        discountValue: Number(discount),
+        issuedTo: userId,
+        issuedToEmail: userEmail,
+        usedBy: [],
+        maxUses: 1,
+        isActive: true,
+        createdAt: serverTimestamp(),
+        expiresAt: null,
+      });
+      setDone(true);
+      setCode('');
+      setDiscount('10');
+      setTimeout(() => setDone(false), 3000);
+    } finally {
+      setIssuing(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleIssue} className="space-y-4">
+      <div className="flex gap-3">
+        <div className="flex-1 space-y-2">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Coupon Code</label>
+          <div className="flex gap-2">
+            <input
+              value={code}
+              onChange={e => setCode(e.target.value.toUpperCase())}
+              required
+              className="flex-1 bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-xl p-3 text-sm font-bold focus:outline-none focus:border-brand-accent transition-all"
+              placeholder="CODE123"
+            />
+            <Button type="button" onClick={genCode} className="text-[10px] px-3">
+              <Tag className="w-4 h-4" /> Gen
+            </Button>
+          </div>
+        </div>
+        <div className="space-y-2 w-32">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Type</label>
+          <select
+            value={type}
+            onChange={e => setType(e.target.value as 'percent' | 'fixed')}
+            className="w-full bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-xl p-3 text-sm font-bold focus:outline-none focus:border-brand-accent transition-all"
+          >
+            <option value="percent">%</option>
+            <option value="fixed">Fixed $</option>
+          </select>
+        </div>
+        <div className="space-y-2 w-28">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Value</label>
+          <input
+            type="number"
+            min={1}
+            value={discount}
+            onChange={e => setDiscount(e.target.value)}
+            required
+            className="w-full bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-xl p-3 text-sm font-bold focus:outline-none focus:border-brand-accent transition-all"
+          />
+        </div>
+      </div>
+      <Button type="submit" disabled={issuing} className="gap-2 text-[10px] bg-purple-600 hover:bg-purple-700 text-white">
+        {issuing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
+        {done ? 'Coupon Issued!' : 'Issue Coupon'}
+      </Button>
+    </form>
+  );
+}
 
 export default function UserDetails() {
   const { userId } = useParams();
@@ -186,6 +330,7 @@ export default function UserDetails() {
     { key: "transactions", label: "Transactions", count: transactions.length },
     { key: "orders", label: "Orders", count: orders.length },
     { key: "sessions", label: "Sessions", count: sessions.length },
+    { key: "email", label: "Email / Coupons" },
     { key: "actions", label: "Admin Actions" },
   ];
 
@@ -458,6 +603,24 @@ export default function UserDetails() {
                   </div>
                 </Card>
               ))}
+            </div>
+          )}
+
+          {/* EMAIL / COUPONS */}
+          {activeTab === "email" && (
+            <div className="space-y-6">
+              <Card className="space-y-4">
+                <CardTitle className="uppercase italic tracking-tighter flex items-center gap-2">
+                  <Mail className="w-5 h-5 text-brand-accent" /> Send Direct Email
+                </CardTitle>
+                <EmailUserPanel userId={userId!} userEmail={profile.email} adminId={currentAdmin?.uid || ""} />
+              </Card>
+              <Card className="space-y-4">
+                <CardTitle className="uppercase italic tracking-tighter flex items-center gap-2">
+                  <Gift className="w-5 h-5 text-purple-500" /> Issue Coupon
+                </CardTitle>
+                <IssueCouponPanel userId={userId!} userEmail={profile.email} />
+              </Card>
             </div>
           )}
 

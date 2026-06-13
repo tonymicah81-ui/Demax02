@@ -15,15 +15,142 @@ import {
   Package,
   Activity,
   Trash2,
-  Edit3
+  Edit3,
+  Flag,
+  ChevronDown,
+  ChevronUp,
+  X
 } from "lucide-react";
 import { Card, CardTitle } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
-import { db, collection, addDoc, onSnapshot, query, doc, updateDoc, serverTimestamp, orderBy, getDocs, where } from "../../firebase";
+import { db, collection, addDoc, onSnapshot, query, doc, updateDoc, serverTimestamp, orderBy, getDocs, where, deleteDoc } from "../../firebase";
 import { useAuth } from "../../AuthContext";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../../utils/cn";
 import { logAudit } from "../../lib/audit";
+import {
+  Milestone, MilestoneStatus,
+  createMilestone, getMilestones, updateMilestoneStatus, deleteMilestone,
+  MILESTONE_STATUS_LABELS, MILESTONE_STATUS_COLORS
+} from "../../lib/milestoneService";
+
+function MilestonePanel({ projectId, userId }: { projectId: string; userId: string }) {
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    getMilestones(projectId).then(ms => { setMilestones(ms); setLoading(false); });
+  }, [projectId]);
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const id = await createMilestone({
+        projectId, userId,
+        title: newTitle,
+        description: newDesc,
+        order: milestones.length + 1,
+      });
+      const updated = await getMilestones(projectId);
+      setMilestones(updated);
+      setNewTitle(''); setNewDesc(''); setAdding(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleStatusChange(id: string, status: MilestoneStatus) {
+    await updateMilestoneStatus(id, status);
+    const updated = await getMilestones(projectId);
+    setMilestones(updated);
+  }
+
+  async function handleDelete(id: string) {
+    await deleteMilestone(id);
+    setMilestones(ms => ms.filter(m => m.id !== id));
+  }
+
+  if (loading) return <div className="py-4 flex items-center gap-2 text-[10px] text-slate-400 uppercase font-black"><Loader2 className="w-4 h-4 animate-spin" />Loading milestones...</div>;
+
+  return (
+    <div className="space-y-3">
+      {milestones.length === 0 && !adding && (
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest py-2">No milestones yet</p>
+      )}
+      {milestones.map(m => (
+        <div key={m.id} className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-brand-border dark:border-white/5">
+          <Flag className="w-4 h-4 text-brand-accent mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-black text-brand-text-bold dark:text-white truncate">{m.title}</p>
+            {m.description && <p className="text-[10px] text-slate-400 mt-0.5 truncate">{m.description}</p>}
+            <select
+              value={m.status}
+              onChange={e => handleStatusChange(m.id, e.target.value as MilestoneStatus)}
+              className={cn(
+                "mt-2 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border-none outline-none cursor-pointer",
+                MILESTONE_STATUS_COLORS[m.status]
+              )}
+            >
+              {(Object.keys(MILESTONE_STATUS_LABELS) as MilestoneStatus[]).map(s => (
+                <option key={s} value={s}>{MILESTONE_STATUS_LABELS[s]}</option>
+              ))}
+            </select>
+          </div>
+          <button onClick={() => handleDelete(m.id)} className="text-slate-300 hover:text-red-400 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      ))}
+
+      <AnimatePresence>
+        {adding && (
+          <motion.form
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            onSubmit={handleAdd}
+            className="space-y-2 pt-2"
+          >
+            <input
+              value={newTitle}
+              onChange={e => setNewTitle(e.target.value)}
+              required
+              placeholder="Milestone title..."
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-xl p-3 text-xs font-bold focus:outline-none focus:border-brand-accent transition-all"
+            />
+            <input
+              value={newDesc}
+              onChange={e => setNewDesc(e.target.value)}
+              placeholder="Description (optional)"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-xl p-3 text-xs focus:outline-none focus:border-brand-accent transition-all"
+            />
+            <div className="flex gap-2">
+              <Button type="submit" disabled={saving} className="text-[9px] px-4 py-2 gap-1">
+                {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                Add
+              </Button>
+              <button type="button" onClick={() => setAdding(false)} className="text-[10px] text-slate-400 hover:text-slate-600 font-bold uppercase">Cancel</button>
+            </div>
+          </motion.form>
+        )}
+      </AnimatePresence>
+
+      {!adding && (
+        <button
+          onClick={() => setAdding(true)}
+          className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-brand-accent hover:text-brand-accent/80 transition-colors"
+        >
+          <Plus className="w-3.5 h-3.5" /> Add Milestone
+        </button>
+      )}
+    </div>
+  );
+}
 
 export default function AdminProjects() {
   const { user } = useAuth();
@@ -34,6 +161,15 @@ export default function AdminProjects() {
   const [searchQuery, setSearchQuery] = useState("");
   const [userSearch, setUserSearch] = useState("");
   const [userResults, setUserResults] = useState<any[]>([]);
+  const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(new Set());
+
+  const toggleMilestones = (id: string) => {
+    setExpandedMilestones(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
   
   const [formData, setFormData] = useState({
     userId: "",
@@ -198,6 +334,35 @@ export default function AdminProjects() {
                             ))}
                          </div>
                       </div>
+                   </div>
+
+                   {/* Milestones expandable section */}
+                   <div className="border-t border-brand-border dark:border-white/5">
+                     <button
+                       onClick={() => toggleMilestones(proj.id)}
+                       className="w-full flex items-center justify-between px-8 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-brand-accent transition-colors"
+                     >
+                       <span className="flex items-center gap-2">
+                         <Flag className="w-4 h-4" /> Milestones
+                       </span>
+                       {expandedMilestones.has(proj.id)
+                         ? <ChevronUp className="w-4 h-4" />
+                         : <ChevronDown className="w-4 h-4" />}
+                     </button>
+                     <AnimatePresence>
+                       {expandedMilestones.has(proj.id) && (
+                         <motion.div
+                           initial={{ height: 0, opacity: 0 }}
+                           animate={{ height: 'auto', opacity: 1 }}
+                           exit={{ height: 0, opacity: 0 }}
+                           className="overflow-hidden"
+                         >
+                           <div className="px-8 pb-8">
+                             <MilestonePanel projectId={proj.id} userId={proj.userId} />
+                           </div>
+                         </motion.div>
+                       )}
+                     </AnimatePresence>
                    </div>
                 </Card>
              </motion.div>

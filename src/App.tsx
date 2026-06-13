@@ -40,6 +40,13 @@ import Notifications from "./pages/user/Notifications";
 import Cart from "./pages/user/Cart";
 import Orders from "./pages/user/Orders";
 import UserSessions from "./pages/user/Sessions";
+import HelpCenter from "./pages/user/Help";
+import BotService from "./pages/user/BotService";
+import EmailLayout from "./pages/user/email/EmailLayout";
+import UserMail from "./pages/user/email/UserMail";
+import UserEmailTemplates from "./pages/user/email/EmailTemplates";
+import EmailSettings from "./pages/user/email/EmailSettings";
+import ContactLists from "./pages/user/email/ContactLists";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -54,12 +61,17 @@ import BroadcastSystem from "./pages/admin/Broadcast";
 import AdminProjects from "./pages/admin/Projects";
 import AdminTransactions from "./pages/admin/AdminTransactions";
 import AdminSessions from "./pages/admin/Sessions";
+import AdminMail from "./pages/admin/Mail";
+import AdminCoupons from "./pages/admin/Coupons";
+import KnowledgeBase from "./pages/admin/KnowledgeBase";
+import CRM from "./pages/admin/CRM";
 
 // Super Admin Pages
 import SuperDashboard from "./pages/superadmin/Dashboard";
 import ManageAdmins from "./pages/superadmin/ManageAdmins";
 import AuditLogs from "./pages/superadmin/AuditLogs";
 import PlatformSettings from "./pages/superadmin/PlatformSettings";
+import SuperAdminCoupons from "./pages/superadmin/Coupons";
 
 function LoadingWrapper({ children }: { children: React.ReactNode }) {
   const { loading } = useAuth();
@@ -120,6 +132,14 @@ function AppRoutes() {
               <Route path="/cart" element={<Cart />} />
               <Route path="/orders" element={<Orders />} />
               <Route path="/sessions" element={<UserSessions />} />
+              <Route path="/help" element={<HelpCenter />} />
+              <Route path="/bot" element={<BotService />} />
+              <Route path="/email" element={<EmailLayout />}>
+                <Route path="mail" element={<UserMail />} />
+                <Route path="templates" element={<UserEmailTemplates />} />
+                <Route path="settings" element={<EmailSettings />} />
+                <Route path="contacts" element={<ContactLists />} />
+              </Route>
 
               {/* Admin Access */}
               <Route element={<AdminRoute />}>
@@ -135,6 +155,10 @@ function AppRoutes() {
                 <Route path="/admin/projects" element={<AdminProjects />} />
                 <Route path="/admin/transactions" element={<AdminTransactions />} />
                 <Route path="/admin/sessions" element={<AdminSessions />} />
+                <Route path="/admin/mail" element={<AdminMail />} />
+                <Route path="/admin/coupons" element={<AdminCoupons />} />
+                <Route path="/admin/kb" element={<KnowledgeBase />} />
+                <Route path="/admin/crm" element={<CRM />} />
               </Route>
 
               {/* Super Admin Access */}
@@ -143,6 +167,7 @@ function AppRoutes() {
                 <Route path="/superadmin/admins" element={<ManageAdmins />} />
                 <Route path="/superadmin/audit" element={<AuditLogs />} />
                 <Route path="/superadmin/settings" element={<PlatformSettings />} />
+                <Route path="/superadmin/coupons" element={<SuperAdminCoupons />} />
               </Route>
             </Route>
           </Route>

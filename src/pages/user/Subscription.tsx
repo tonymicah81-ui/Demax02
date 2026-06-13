@@ -1,10 +1,20 @@
 import { useState, useEffect } from "react";
 import { Card, CardTitle } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
-import { Package, Globe, Shield, Database, MessageSquare, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
+import { Package, CheckCircle2, Loader2, AlertCircle, Tag, X } from "lucide-react";
 import { useAuth } from "../../AuthContext";
 import { db, collection, query, where, onSnapshot, doc, runTransaction, serverTimestamp } from "../../firebase";
+import { validateCoupon, redeemCoupon } from "../../lib/couponService";
 import { cn } from "../../utils/cn";
+
+type Duration = 1 | 3 | 6 | 12;
+
+const DURATION_OPTIONS: { value: Duration; label: string; multiplier: number; savings?: string }[] = [
+  { value: 1,  label: '1 Month',   multiplier: 1.0 },
+  { value: 3,  label: '3 Months',  multiplier: 2.5, savings: 'Save 17%' },
+  { value: 6,  label: '6 Months',  multiplier: 4.5, savings: 'Save 25%' },
+  { value: 12, label: '12 Months', multiplier: 8.0, savings: 'Save 33%' },
+];
 
 interface Project {
   id: string;
@@ -25,31 +35,64 @@ export default function Subscription() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [models, setModels] = useState<SubscriptionModel[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [selectedDuration, setSelectedDuration] = useState<Duration>(1);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponValidating, setCouponValidating] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [couponError, setCouponError] = useState("");
 
   useEffect(() => {
     if (!user) return;
-    
     const unsubProjects = onSnapshot(query(collection(db, "projects"), where("userId", "==", user.uid)), (snap) => {
       setProjects(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Project[]);
     });
-
     const unsubModels = onSnapshot(collection(db, "subscription_models"), (snap) => {
       setModels(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SubscriptionModel[]);
       setLoading(false);
     });
-
-    return () => {
-      unsubProjects();
-      unsubModels();
-    };
+    return () => { unsubProjects(); unsubModels(); };
   }, [user]);
+
+  const getDurationConfig = () => DURATION_OPTIONS.find(d => d.value === selectedDuration)!;
+
+  const getPrice = (basePrice: number) => {
+    const cfg = getDurationConfig();
+    let total = basePrice * cfg.multiplier;
+    if (appliedCoupon) {
+      const discount = appliedCoupon.discountType === 'percentage'
+        ? (total * appliedCoupon.value) / 100
+        : Math.min(appliedCoupon.value, total);
+      total = Math.max(0, total - discount);
+    }
+    return total;
+  };
+
+  const getExpiry = (): Date => {
+    const days = selectedDuration === 1 ? 30 : selectedDuration === 3 ? 90 : selectedDuration === 6 ? 180 : 365;
+    return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  };
+
+  async function applyCoupon() {
+    if (!couponCode.trim()) return;
+    setCouponValidating(true);
+    setCouponError('');
+    const result = await validateCoupon(couponCode, 'subscription', 0);
+    if (result.valid && result.coupon) {
+      setAppliedCoupon(result.coupon);
+    } else {
+      setCouponError(result.error || 'Invalid coupon');
+      setAppliedCoupon(null);
+    }
+    setCouponValidating(false);
+  }
 
   const handleActivate = async (model: SubscriptionModel) => {
     if (!user || !profile || !selectedProjectId) return;
+    const finalPrice = getPrice(model.price);
 
-    if (profile.balance < model.price) {
+    if ((profile.balance || 0) < finalPrice) {
       alert("Insufficient funds. Visit the Fiscal Terminal to add capital.");
       window.location.href = "/wallet";
       return;
@@ -66,45 +109,36 @@ export default function Subscription() {
       await runTransaction(db, async (tx) => {
         const userRef = doc(db, "users", user.uid);
         const projectRef = doc(db, "projects", selectedProjectId);
-        
         const userDoc = await tx.get(userRef);
         if (!userDoc.exists()) throw "User protocol not found";
-        
         const currentBalance = userDoc.data().balance || 0;
-        if (currentBalance < model.price) throw "Capital deficiency detected";
+        if (currentBalance < finalPrice) throw "Capital deficiency detected";
 
-        // Update Balance
-        tx.update(userRef, { balance: currentBalance - model.price });
-
-        // Update Project
+        tx.update(userRef, { balance: currentBalance - finalPrice });
         const currentSubs = project?.subscriptions || [];
-        tx.update(projectRef, { 
+        const expiry = getExpiry();
+        tx.update(projectRef, {
           subscriptions: [...currentSubs, model.id],
-          [`sub_${model.id}_expiry`]: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+          [`sub_${model.id}_expiry`]: expiry,
+          [`sub_${model.id}_duration`]: selectedDuration,
         });
 
-        // Log Transaction
         const txRef = doc(collection(db, "transactions"));
         tx.set(txRef, {
-          userId: user.uid,
-          type: "payment",
-          amount: -model.price,
-          status: "completed",
-          description: `Subscription Activation: ${model.name} for ${project?.name}`,
+          userId: user.uid, type: "payment", amount: -finalPrice, status: "completed",
+          description: `Subscription: ${model.name} × ${selectedDuration} month(s) for ${project?.name}`,
           createdAt: serverTimestamp()
         });
 
-        // Notify User
         const notifRef = doc(collection(db, "user_notifications"));
         tx.set(notifRef, {
-          userId: user.uid,
-          title: "Service Activated",
-          message: `${model.name} is now operational for ${project?.name}.`,
-          read: false,
-          createdAt: serverTimestamp()
+          userId: user.uid, title: "Service Activated",
+          message: `${model.name} is now operational for ${project?.name} (${selectedDuration} month${selectedDuration > 1 ? 's' : ''}).`,
+          read: false, createdAt: serverTimestamp()
         });
       });
-      alert(`Service ${model.name} activated successfully.`);
+      if (appliedCoupon) { try { await redeemCoupon(appliedCoupon.id, user.uid); } catch {} }
+      alert(`Service ${model.name} activated for ${selectedDuration} month${selectedDuration > 1 ? 's' : ''}.`);
     } catch (err) {
       console.error(err);
       alert("Activation failed: " + err);
@@ -149,6 +183,48 @@ export default function Subscription() {
               </select>
            </Card>
 
+           {/* Duration Selector */}
+           <Card className="bg-white dark:bg-slate-900 border-none shadow-md">
+              <CardTitle className="tracking-tighter uppercase italic text-sm mb-6">Subscription Duration</CardTitle>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {DURATION_OPTIONS.map(opt => (
+                  <button key={opt.value} onClick={() => setSelectedDuration(opt.value)}
+                    className={cn("p-4 rounded-xl border-2 text-center transition-all", selectedDuration === opt.value ? "border-brand-accent bg-brand-accent/10" : "border-brand-border dark:border-white/5 hover:border-brand-accent/40")}>
+                    <p className={cn("text-xs font-black uppercase tracking-tight", selectedDuration === opt.value ? "text-brand-accent" : "text-brand-text-bold dark:text-white")}>{opt.label}</p>
+                    <p className="text-[9px] font-black text-slate-400 uppercase mt-1">{opt.value === 1 ? 'Base Price' : `×${opt.multiplier}`}</p>
+                    {opt.savings && <p className="text-[9px] font-black text-brand-success mt-1">{opt.savings}</p>}
+                  </button>
+                ))}
+              </div>
+           </Card>
+
+           {/* Coupon */}
+           <Card className="bg-white dark:bg-slate-900 border-none shadow-md">
+              <CardTitle className="tracking-tighter uppercase italic text-sm mb-4 flex items-center gap-2"><Tag className="w-4 h-4 text-amber-400" /> Coupon Code</CardTitle>
+              {appliedCoupon ? (
+                <div className="flex items-center justify-between p-4 bg-brand-success/5 border border-brand-success/20 rounded-xl">
+                  <div>
+                    <p className="text-xs font-black text-brand-success uppercase tracking-tight">{appliedCoupon.code} — Applied!</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">{appliedCoupon.discountType === 'percentage' ? `${appliedCoupon.value}% off` : `$${appliedCoupon.value} off`}</p>
+                  </div>
+                  <button onClick={() => { setAppliedCoupon(null); setCouponCode(''); }} className="text-red-400 hover:text-red-500"><X className="w-4 h-4" /></button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex gap-3">
+                    <input value={couponCode} onChange={e => { setCouponCode(e.target.value.toUpperCase()); setCouponError(''); }}
+                      onKeyDown={e => e.key === 'Enter' && applyCoupon()}
+                      className="flex-1 bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-xl px-4 py-3 text-xs font-black uppercase focus:outline-none focus:border-brand-accent transition-all dark:text-white"
+                      placeholder="ENTER CODE..." />
+                    <Button onClick={applyCoupon} disabled={couponValidating || !couponCode.trim()} variant="outline" className="gap-2 text-[10px] shrink-0">
+                      {couponValidating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Tag className="w-4 h-4" />} Apply
+                    </Button>
+                  </div>
+                  {couponError && <p className="text-[10px] text-red-500 font-bold">{couponError}</p>}
+                </div>
+              )}
+           </Card>
+
            <div className="grid md:grid-cols-2 gap-6">
               {models.length === 0 ? (
                 <div className="md:col-span-2 py-20 text-center opacity-30 italic font-black text-sm uppercase tracking-widest">
@@ -157,6 +233,8 @@ export default function Subscription() {
               ) : (
                 models.map((s) => {
                   const isActive = projects.find(p => p.id === selectedProjectId)?.subscriptions?.includes(s.id);
+                  const finalPrice = getPrice(s.price);
+                  const durationCfg = getDurationConfig();
                   return (
                     <Card key={s.id} className={cn(
                       "group transition-all flex flex-col justify-between border-none shadow-lg bg-white dark:bg-slate-900",
@@ -167,14 +245,13 @@ export default function Subscription() {
                             <Package className="w-6 h-6" />
                           </div>
                           <h3 className="text-lg font-black text-brand-text-bold dark:text-white uppercase tracking-tight italic">{s.name}</h3>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase mt-3 leading-relaxed italic line-clamp-3">
-                            {s.description}
-                          </p>
+                          <p className="text-[10px] text-slate-500 font-bold uppercase mt-3 leading-relaxed italic line-clamp-3">{s.description}</p>
                        </div>
                        <div className="mt-8 pt-6 border-t border-brand-border dark:border-white/5 flex items-center justify-between">
                           <div>
-                            <p className="text-2xl font-black text-brand-text-bold dark:text-white italic tracking-tighter">${s.price}</p>
-                            <p className="text-[9px] text-slate-500 font-black uppercase">PER_INTERVAL</p>
+                            <p className="text-2xl font-black text-brand-text-bold dark:text-white italic tracking-tighter">${finalPrice.toFixed(2)}</p>
+                            <p className="text-[9px] text-slate-500 font-black uppercase">{durationCfg.label.toUpperCase()}</p>
+                            {appliedCoupon && <p className="text-[9px] font-black text-brand-success mt-0.5">Coupon Applied</p>}
                           </div>
                           <Button 
                              disabled={!selectedProjectId || processingId === s.id}

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Shield, Cloud, Palette, Mail, Save, Loader2, CheckCircle2,
   XCircle, Eye, EyeOff, ToggleLeft, ToggleRight, Settings,
-  Key, Code2, Image, AlertTriangle, RefreshCw
+  Key, Code2, Image, AlertTriangle, RefreshCw, Bot
 } from 'lucide-react';
 import { Card, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -13,9 +13,108 @@ import {
   loadVaultConfig, saveVaultConfig,
   CloudinarySettings, LoadingSettings, GeneralSettings
 } from '../../lib/platformSettings';
-import { db, doc, updateDoc, serverTimestamp } from '../../firebase';
+import { db, doc, updateDoc, setDoc, getDoc, serverTimestamp } from '../../firebase';
 
-type Tab = 'general' | 'vault' | 'loading' | 'cloudinary';
+function SmtpSettingsPanel() {
+  const [data, setData] = useState({ provider: 'emailjs', serviceId: '', templateId: '', publicKey: '', host: '', port: 587, username: '', password: '', fromName: 'Platform Support', fromAddress: '', ssl: true });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    getDoc(doc(db, 'platform_settings', 'smtp')).then(snap => { if (snap.exists()) setData(d => ({ ...d, ...snap.data() })); });
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    try { await setDoc(doc(db, 'platform_settings', 'smtp'), { ...data, updatedAt: serverTimestamp() }, { merge: true }); setSaved(true); setTimeout(() => setSaved(false), 2500); } catch {}
+    setSaving(false);
+  }
+
+  const inp = "w-full bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-brand-accent transition-all dark:text-white";
+  const lbl = "text-[10px] font-black text-slate-500 uppercase tracking-widest";
+
+  return (
+    <div className="space-y-5">
+      <div className="space-y-2"><label className={lbl}>Provider</label>
+        <select value={data.provider} onChange={e => setData(d => ({ ...d, provider: e.target.value }))} className={inp}>
+          <option value="emailjs">EmailJS (browser-side)</option>
+          <option value="smtp">Direct SMTP</option>
+          <option value="zoho">Zoho Mail</option>
+        </select>
+      </div>
+      {data.provider === 'emailjs' ? (
+        <div className="grid md:grid-cols-3 gap-4">
+          <div className="space-y-2"><label className={lbl}>Service ID</label><input value={data.serviceId} onChange={e => setData(d => ({ ...d, serviceId: e.target.value }))} className={inp} placeholder="service_xxxxx" /></div>
+          <div className="space-y-2"><label className={lbl}>Template ID</label><input value={data.templateId} onChange={e => setData(d => ({ ...d, templateId: e.target.value }))} className={inp} placeholder="template_xxxxx" /></div>
+          <div className="space-y-2"><label className={lbl}>Public Key</label><input value={data.publicKey} onChange={e => setData(d => ({ ...d, publicKey: e.target.value }))} className={inp} placeholder="your_public_key" /></div>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="space-y-2"><label className={lbl}>SMTP Host</label><input value={data.host} onChange={e => setData(d => ({ ...d, host: e.target.value }))} className={inp} placeholder="smtp.example.com" /></div>
+          <div className="space-y-2"><label className={lbl}>Port</label><input type="number" value={data.port} onChange={e => setData(d => ({ ...d, port: Number(e.target.value) }))} className={inp} /></div>
+          <div className="space-y-2"><label className={lbl}>Username</label><input value={data.username} onChange={e => setData(d => ({ ...d, username: e.target.value }))} className={inp} /></div>
+          <div className="space-y-2"><label className={lbl}>Password</label><input type="password" value={data.password} onChange={e => setData(d => ({ ...d, password: e.target.value }))} className={inp} /></div>
+          <div className="space-y-2"><label className={lbl}>From Name</label><input value={data.fromName} onChange={e => setData(d => ({ ...d, fromName: e.target.value }))} className={inp} /></div>
+          <div className="space-y-2"><label className={lbl}>From Address</label><input type="email" value={data.fromAddress} onChange={e => setData(d => ({ ...d, fromAddress: e.target.value }))} className={inp} /></div>
+          <div className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-brand-border dark:border-white/5 col-span-2">
+            <input type="checkbox" checked={data.ssl} onChange={e => setData(d => ({ ...d, ssl: e.target.checked }))} className="w-4 h-4 accent-brand-accent" />
+            <span className="text-sm font-bold dark:text-white">Use SSL/TLS</span>
+          </div>
+        </div>
+      )}
+      <Button onClick={save} disabled={saving} className={`gap-2 ${saved ? 'bg-brand-success' : 'bg-brand-accent'} text-white`}>
+        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+        {saved ? 'Saved!' : 'Save SMTP Settings'}
+      </Button>
+    </div>
+  );
+}
+
+function BotSettingsPanel() {
+  const [enabled, setEnabled] = useState(true);
+  const [tiers, setTiers] = useState([{ name: 'Basic', price: 5, features: 'Telegram notifications' }, { name: 'Pro', price: 15, features: 'Full bot API access' }]);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    getDoc(doc(db, 'platform_settings', 'bot_config')).then(snap => {
+      if (snap.exists()) { const d = snap.data(); setEnabled(d.enabled ?? true); if (d.tiers) setTiers(d.tiers); }
+    });
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    try { await setDoc(doc(db, 'platform_settings', 'bot_config'), { enabled, tiers, updatedAt: serverTimestamp() }, { merge: true }); setSaved(true); setTimeout(() => setSaved(false), 2500); } catch {}
+    setSaving(false);
+  }
+
+  const inp = "w-full bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-brand-accent transition-all dark:text-white";
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-brand-border dark:border-white/5">
+        <div><p className="text-sm font-black text-brand-text-bold dark:text-white uppercase tracking-tight">Bot Service</p><p className="text-[10px] text-slate-400 mt-0.5">Enable/disable bot subscriptions for all users</p></div>
+        <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} className="w-5 h-5 accent-brand-accent cursor-pointer" />
+      </div>
+      <div className="space-y-3">
+        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Subscription Tiers</p>
+        {tiers.map((tier, idx) => (
+          <div key={idx} className="grid grid-cols-3 gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-brand-border dark:border-white/5">
+            <input value={tier.name} onChange={e => setTiers(t => t.map((x, i) => i === idx ? { ...x, name: e.target.value } : x))} className={inp + ' text-xs'} placeholder="Tier name" />
+            <input type="number" value={tier.price} onChange={e => setTiers(t => t.map((x, i) => i === idx ? { ...x, price: Number(e.target.value) } : x))} className={inp + ' text-xs'} placeholder="Price/mo" />
+            <input value={tier.features} onChange={e => setTiers(t => t.map((x, i) => i === idx ? { ...x, features: e.target.value } : x))} className={inp + ' text-xs'} placeholder="Features" />
+          </div>
+        ))}
+      </div>
+      <Button onClick={save} disabled={saving} className={`gap-2 ${saved ? 'bg-brand-success' : 'bg-brand-accent'} text-white`}>
+        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+        {saved ? 'Saved!' : 'Save Bot Settings'}
+      </Button>
+    </div>
+  );
+}
+
+type Tab = 'general' | 'vault' | 'loading' | 'cloudinary' | 'email' | 'bot';
 
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
@@ -262,6 +361,18 @@ export default function PlatformSettings() {
             {tab.label}
           </button>
         ))}
+        <button
+          onClick={() => setActiveTab('email')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'email' ? 'bg-brand-accent text-white shadow-lg shadow-brand-accent/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-brand-text-bold dark:hover:text-white'}`}
+        >
+          <Mail className="w-3.5 h-3.5" /> Email
+        </button>
+        <button
+          onClick={() => setActiveTab('bot')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'bot' ? 'bg-brand-accent text-white shadow-lg shadow-brand-accent/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-brand-text-bold dark:hover:text-white'}`}
+        >
+          <Settings className="w-3.5 h-3.5" /> Bot
+        </button>
       </div>
 
       <AnimatePresence mode="wait">
@@ -513,6 +624,32 @@ export default function PlatformSettings() {
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Save Loading Settings
             </Button>
+          </motion.div>
+        )}
+
+        {/* EMAIL SETTINGS */}
+        {activeTab === 'email' && (
+          <motion.div key="email" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+            <Card className="space-y-6">
+              <CardTitle className="uppercase italic tracking-tighter flex items-center gap-2">
+                <Mail className="w-4 h-4 text-brand-accent" /> Platform SMTP — Support Mailer
+              </CardTitle>
+              <p className="text-[11px] text-slate-400 leading-relaxed">Configure the platform-wide email credentials used by the Admin Mailer and all auto-trigger emails. These settings are stored securely in Firestore and never exposed to users.</p>
+              <SmtpSettingsPanel />
+            </Card>
+          </motion.div>
+        )}
+
+        {/* BOT SETTINGS */}
+        {activeTab === 'bot' && (
+          <motion.div key="bot" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+            <Card className="space-y-6">
+              <CardTitle className="uppercase italic tracking-tighter flex items-center gap-2">
+                <Settings className="w-4 h-4 text-brand-success" /> Global Bot Settings
+              </CardTitle>
+              <p className="text-[11px] text-slate-400 leading-relaxed">Configure global bot subscription tiers and enable/disable bot services for all users. Individual users configure their own bot tokens in Bot Service.</p>
+              <BotSettingsPanel />
+            </Card>
           </motion.div>
         )}
 

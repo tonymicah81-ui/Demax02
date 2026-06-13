@@ -2,7 +2,8 @@ import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard, ShoppingCart, MessageSquare, User, Users,
   Settings, ShieldAlert, ChevronRight, Wallet, Bell, Package,
-  Wrench, Activity, SlidersHorizontal, Receipt, Monitor, CreditCard, Store
+  Wrench, Activity, SlidersHorizontal, Receipt, Monitor, CreditCard, Store,
+  BookOpen, Bot, Mail, Tag, HelpCircle, FileText, BarChart2
 } from "lucide-react";
 import { useAuth } from "../../AuthContext";
 import { cn } from "../../utils/cn";
@@ -44,6 +45,9 @@ export function Sidebar() {
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { to: "/support", label: "Chat Team", icon: MessageSquare },
     { to: "/subscription", label: "Subscription", icon: Package },
+    { to: "/email/mail", label: "Email Service", icon: Mail },
+    { to: "/bot", label: "Bot Service", icon: Bot },
+    { to: "/help", label: "Help Center", icon: HelpCircle },
     { to: "/profile", label: "Profile", icon: User },
     { to: "/store", label: "Public Store", icon: Store },
     { to: "/marketplace", label: "Marketplace", icon: ShoppingCart },
@@ -56,6 +60,10 @@ export function Sidebar() {
 
   const adminLinks = [
     { to: "/admin", label: "Admin HQ", icon: ShieldAlert },
+    { to: "/admin/mail", label: "Platform Mailer", icon: Mail },
+    { to: "/admin/coupons", label: "Coupons", icon: Tag },
+    { to: "/admin/kb", label: "Knowledge Base", icon: BookOpen },
+    { to: "/admin/crm", label: "CRM — Leads", icon: BarChart2 },
     { to: "/admin/marketplace", label: "Market Control", icon: ShoppingCart },
     { to: "/admin/payments", label: "Payments", icon: Wallet },
     { to: "/admin/transactions", label: "Transactions", icon: CreditCard },
@@ -72,6 +80,7 @@ export function Sidebar() {
     { to: "/superadmin/admins", label: "Manage Admins", icon: ShieldAlert },
     { to: "/superadmin/audit", label: "Audit Logs", icon: Activity },
     { to: "/superadmin/settings", label: "Platform Settings", icon: SlidersHorizontal },
+    { to: "/superadmin/coupons", label: "Coupon System", icon: Tag },
   ];
 
   const renderLinks = (links: any[]) => (

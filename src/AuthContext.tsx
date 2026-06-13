@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db, onAuthStateChanged, doc, getDoc, onSnapshot, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, setDoc } from './firebase';
 import { createSession, clearCurrentSession, validateAndRefreshSession, getLocalSessionExpiry } from './lib/sessionService';
 import { transferVisitorCartToUser } from './lib/visitorCart';
+import { createReferralDoc, processReferral } from './lib/referralService';
 
 export type UserRole = 'user' | 'admin' | 'super_admin' | 'client';
 export type UserStatus = 'active' | 'inactive';
@@ -39,6 +40,7 @@ export interface RegisterData {
   password: string;
   username: string;
   phoneNumber?: string;
+  referralCode?: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -140,6 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const uid = userCredential.user.uid;
 
     if (type === 'user') {
+      const referralCode = Math.random().toString(36).slice(2, 8).toUpperCase();
       await setDoc(doc(db, 'users', uid), {
         uid,
         username,
@@ -148,8 +151,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: 'user',
         status: 'active',
         balance: 0,
+        referralCode,
         createdAt: new Date().toISOString(),
       });
+
+      // Create referral doc
+      try { await createReferralDoc(uid); } catch {}
+
+      // Process referral if code provided
+      if (data.referralCode) {
+        try { await processReferral(uid, data.referralCode); } catch {}
+      }
 
       // Create session + transfer visitor cart
       try {
