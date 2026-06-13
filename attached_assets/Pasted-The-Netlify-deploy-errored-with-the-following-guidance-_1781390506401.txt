@@ -1,0 +1,85 @@
+The Netlify deploy errored, with the following guidance provided:
+
+Diagnosis
+- Netlify installed Node v22.22.3 for the build ([lines 12–16](#L12-L16)).
+- npm failed during install with an internal error "Exit handler never called" and aborted the install ([lines 19–24](#L19-L24)). The build then failed at dependency installation ([lines 20, 26](#L20-L26)).
+- Likely cause: an incompatibility/bug between the automatically selected Node/npm version (Node 22 + npm 10) and either npm itself or one of your dependencies. The repo does not pin a Node version, so Netlify picked Node 22 which can trigger npm internal errors for some setups.
+
+Solution
+1. Pin a stable LTS Node version for Netlify (recommended: 18.x or 20.x).
+   - Option A — add a .nvmrc file at repo root (simplest):
+     ```text
+     18
+     ```
+     Commit and push.
+   - Option B — add engines to package.json:
+     ```json
+     {
+       "engines": {
+         "node": ">=18 <21",
+         "npm": ">=9"
+       }
+     }
+     ```
+     Commit and push.
+   - Option C — set in netlify.toml:
+     ```toml
+     [build.environment]
+     NODE_VERSION = "18"
+     ```
+     Commit and push.
+
+2. Clear the Netlify build cache and trigger a new deploy.
+   - In Netlify UI: Deploys → Trigger deploy → Clear cache and deploy site.
+   - Or push a new commit after adding the Node pin.
+
+3. Verify locally before redeploying:
+   - Install Node 18 or 20 locally (nvm use 18).
+   - Run:
+     ```bash
+     npm ci
+     npm run build
+     ```
+   - Confirm install/build succeed.
+
+4. If the error persists after pinning Node:
+   - Inspect the full npm debug log referenced in the build log for details (/opt/buildhome/.npm/_logs/... was printed in the log) and share it.
+   - Ensure your dependencies are correct in package.json. If a build-level external config is later required (e.g., rollup externals), first verify the package is listed in package.json or that the required file was committed to the repo before adding it to any external config.
+
+Netlify docs for changing Node versions:
+https://docs.netlify.com/configure-builds/manage-dependencies/#node-js-and-javascript
+
+Why this will fix it
+Pinning to Node 18/20 prevents Netlify from auto-using Node 22 + npm 10 where this npm internal error appears. Many build errors like "Exit handler never called" are resolved by using a known LTS Node + npm combination.
+
+The relevant error logs are:
+
+Line 0: build-image version: ac6eb13fbf000e5c09ad677efd8b7c3c2d0142b6 (noble-new-builds)
+Line 1: buildbot version: a4e69ecd307ba0c352dfef5d0d39913f2dec70dc
+Line 2: Fetching cached dependencies
+Line 3: Failed to fetch cache, continuing with build
+Line 4: Starting to prepare the repo for build
+Line 5: No cached dependencies found. Cloning fresh repo
+Line 6: git clone --filter=blob:none https://github.com/tonymicah81-ui/Demax02
+Line 7: Preparing Git Reference refs/heads/main
+Line 8: Installing dependencies
+Line 9: mise ~/.config/mise/config.toml tools: python@3.14.3
+Line 10: mise ~/.config/mise/config.toml tools: ruby@3.4.8
+Line 11: mise ~/.config/mise/config.toml tools: go@1.26.2
+Line 12: Downloading and installing node v22.22.3...
+Line 13: Downloading https://nodejs.org/dist/v22.22.3/node-v22.22.3-linux-x64.tar.xz...
+Line 14: Computing checksum with sha256sum
+Line 15: Checksums matched!
+Line 16: Now using node v22.22.3 (npm v10.9.8)
+Line 17: Enabling Node.js Corepack
+Line 18: No npm workspaces detected
+Line 19: Installing npm packages using npm version 10.9.8
+Line 20: Failed during stage 'Install dependencies': dependency_installation script returned non-zero exit code: 1
+Line 21: npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+npm error Exit handler never called
+Line 22: npm error This is an error with npm itself. Please report this error at:
+Line 23: npm error   <https://github.com/npm/cli/issues>
+Line 24: npm error A complete log of this run can be found in: /opt/buildhome/.npm/_logs/2026-06-13T22_34_08_125Z-debug-0.log
+Line 25: Error during npm install
+Line 26: Failing build: Failed to install dependencies
+Line 27: Finished processing build request in 1m17.915s
