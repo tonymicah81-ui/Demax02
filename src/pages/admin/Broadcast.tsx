@@ -133,7 +133,7 @@ export default function BroadcastSystem() {
 
                   <div className="space-y-4">
                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Signal Authority</label>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Sender Name</label>
                         <div className="flex gap-4">
                            {["info", "alert", "success"].map(type => (
                              <button 
@@ -226,7 +226,7 @@ export default function BroadcastSystem() {
                               )}
                             >
                                <div className="text-left">
-                                  <p className="text-[10px] font-black uppercase truncate">{u.username || "Entity"}</p>
+                                  <p className="text-[10px] font-black uppercase truncate">{u.username || "User"}</p>
                                   <p className="text-[9px] font-mono opacity-50">{u.email}</p>
                                </div>
                                {selectedUsers.find(i => i.uid === u.uid) && <Check className="w-4 h-4" />}

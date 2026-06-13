@@ -53,8 +53,8 @@ export default function Projects() {
   const getStatusInfo = (status: Project['status']) => {
     switch (status) {
       case 'completed': return { color: 'text-brand-success', bg: 'bg-brand-success/10', label: 'DEPLOYED', icon: CheckCircle };
-      case 'in-progress': return { color: 'text-blue-500', bg: 'bg-blue-500/10', label: 'OPTIMIZING', icon: Clock };
-      default: return { color: 'text-amber-500', bg: 'bg-amber-500/10', label: 'PENDING HUB', icon: AlertCircle };
+      case 'in-progress': return { color: 'text-blue-500', bg: 'bg-blue-500/10', label: 'In Progress', icon: Clock };
+      default: return { color: 'text-amber-500', bg: 'bg-amber-500/10', label: 'Pending', icon: AlertCircle };
     }
   };
 
@@ -62,9 +62,9 @@ export default function Projects() {
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-brand-border dark:border-white/5">
         <div>
-          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">Operation Logs</h1>
+          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">My Projects</h1>
           <p className="text-slate-500 dark:text-slate-400 font-bold mt-2 uppercase tracking-[0.2em] text-[10px] italic">
-            Durex Project Registry // Active Assets
+            All projects linked to your account
           </p>
         </div>
         <div className="flex items-center gap-4">

@@ -48,10 +48,10 @@ export default function AuditLogs() {
         <div>
            <div className="flex items-center gap-3 mb-2">
               <ShieldAlert className="text-brand-success w-6 h-6" />
-              <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic leading-none">Command_Audit</h1>
+              <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic leading-none">Audit Logs</h1>
            </div>
            <p className="text-brand-accent font-black uppercase tracking-[0.2em] text-[10px] italic">
-             Restricted Protocol Integrity Logs // Super_Admin_Access_Only
+             Immutable record of all admin actions
            </p>
         </div>
         <div className="flex items-center gap-4">
@@ -125,8 +125,8 @@ export default function AuditLogs() {
             <div className="py-40 text-center space-y-6 opacity-20 border-2 border-dashed border-brand-border dark:border-white/5 rounded-[40px]">
                <ArrowDownCircle className="w-20 h-20 mx-auto" />
                <div className="space-y-1">
-                  <p className="text-xl font-black uppercase italic tracking-[0.3em]">No Audit Fragments</p>
-                  <p className="text-[10px] font-bold uppercase tracking-widest">Protocol silence detected in selected range.</p>
+                  <p className="text-xl font-black uppercase italic tracking-[0.3em]">No Audit Logs</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest">No activity found in this range.</p>
                </div>
             </div>
          )}

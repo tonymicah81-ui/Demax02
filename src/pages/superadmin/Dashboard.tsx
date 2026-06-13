@@ -96,9 +96,9 @@ export default function SuperDashboard() {
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-brand-border dark:border-white/5">
         <div>
-          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">Source Authority</h1>
+          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">Control Panel</h1>
           <p className="text-brand-success font-black mt-2 uppercase tracking-[0.3em] text-[10px] italic">
-            Durex Core Engine // Quantum Protocol Management
+            Super Admin // Platform Configuration
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -134,7 +134,7 @@ export default function SuperDashboard() {
         <div className="lg:col-span-2 space-y-8">
           <Card className="space-y-8">
             <div className="flex items-center justify-between">
-              <CardTitle className="uppercase italic tracking-tighter">Platform Fiscal Configuration</CardTitle>
+              <CardTitle className="uppercase italic tracking-tighter">Bank Details</CardTitle>
               <Lock className="w-4 h-4 text-brand-accent" />
             </div>
 

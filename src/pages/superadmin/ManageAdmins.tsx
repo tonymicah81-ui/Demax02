@@ -48,7 +48,7 @@ export default function ManageAdmins() {
       await updateDoc(doc(db, "users", adminId), { role: newRole });
     } catch (err) {
       console.error(err);
-      alert("Role mutation failed. Authority rejected.");
+      alert("Role update failed. Please try again.");
     } finally {
       setActingId(null);
     }
@@ -58,14 +58,14 @@ export default function ManageAdmins() {
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-brand-border dark:border-white/5">
         <div>
-          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">Authority Control</h1>
+          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">Admin Management</h1>
           <p className="text-brand-success font-black mt-2 uppercase tracking-[0.2em] text-[10px] italic">
-            Admin Hierarchy Management // Access Level Mutation
+            Manage admin accounts and permission levels
           </p>
         </div>
         <div className="flex items-center gap-4">
            <Button size="sm" className="gap-2">
-             <UserPlus className="w-4 h-4" /> Initialize Authority
+             <UserPlus className="w-4 h-4" /> Add Admin
            </Button>
         </div>
       </div>
@@ -92,11 +92,11 @@ export default function ManageAdmins() {
 
                  <div className="space-y-4">
                     <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5">
-                       <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Clearance Level:</span>
+                       <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Role:</span>
                        <span className="text-[10px] font-black text-brand-accent uppercase tracking-[0.2em] italic">{admin.role}</span>
                     </div>
                     <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5">
-                       <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Protocol Status:</span>
+                       <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Status:</span>
                        <span className={cn(
                          "text-[10px] font-black uppercase tracking-[0.2em] italic",
                          admin.status === 'active' ? "text-brand-success" : "text-amber-500"
@@ -140,7 +140,7 @@ export default function ManageAdmins() {
       {loading && (
         <div className="py-32 flex flex-col items-center gap-4 opacity-50">
            <Loader2 className="w-10 h-10 animate-spin text-brand-success" />
-           <p className="text-[10px] font-black uppercase tracking-[0.4em] italic">Accessing Authority Registry...</p>
+           <p className="text-[10px] font-black uppercase tracking-[0.4em] italic">Loading admins...</p>
         </div>
       )}
     </div>

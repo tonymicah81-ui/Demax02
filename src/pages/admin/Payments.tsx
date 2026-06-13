@@ -130,9 +130,9 @@ export default function ManagePayments() {
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-brand-border dark:border-white/5">
         <div>
-          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic leading-none">Fiscal_Review</h1>
+          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic leading-none">Payments</h1>
           <p className="text-brand-accent font-black mt-2 uppercase tracking-[0.2em] text-[10px] italic">
-            Deposit Verification Terminal // Protocol Audit v2.1
+            Review and approve client payment requests
           </p>
         </div>
         <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
@@ -140,13 +140,13 @@ export default function ManagePayments() {
              onClick={() => setActiveTab("pending")}
              className={cn("px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest", activeTab === "pending" ? "bg-white dark:bg-slate-800 text-brand-accent shadow-sm" : "text-slate-400")}
            >
-             Awaiting_Nodes
+             Pending
            </button>
            <button 
              onClick={() => setActiveTab("history")}
              className={cn("px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest", activeTab === "history" ? "bg-white dark:bg-slate-800 text-brand-accent shadow-sm" : "text-slate-400")}
            >
-             Protocol_Ledger
+             History
            </button>
         </div>
       </div>
@@ -169,7 +169,7 @@ export default function ManagePayments() {
             </div>
             <div className="pt-4 flex items-center gap-2">
                <TrendingUp className="w-5 h-5 text-brand-accent" />
-               <p className="text-[9px] font-black uppercase tracking-widest opacity-60">Volume Increasing::Linear</p>
+               <p className="text-[9px] font-black uppercase tracking-widest opacity-60">Volume Growing</p>
             </div>
          </Card>
 
@@ -179,7 +179,7 @@ export default function ManagePayments() {
                  {loading ? (
                    <div className="h-64 flex flex-col items-center justify-center space-y-4">
                       <Loader2 className="w-10 h-10 animate-spin text-brand-accent" />
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Syncing Fiscal Data...</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Loading payments...</p>
                    </div>
                  ) : payments.length === 0 ? (
                    <div className="h-64 flex flex-col items-center justify-center space-y-4 border border-dashed border-brand-border rounded-3xl opacity-30">
@@ -196,11 +196,11 @@ export default function ManagePayments() {
                               </div>
                               <div className="min-w-0">
                                  <div className="flex items-center gap-3 mb-1">
-                                    <h3 className="text-sm font-black text-brand-text-bold dark:text-white uppercase tracking-tight italic">Relay_${p.id.slice(0, 8)}</h3>
+                                    <h3 className="text-sm font-black text-brand-text-bold dark:text-white uppercase tracking-tight italic">Deposit #{p.id.slice(0, 8)}</h3>
                                     <span className="text-[9px] font-mono text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded truncate">UID: {p.userId}</span>
                                  </div>
                                  <div className="flex items-center gap-4 text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                                    <span className="flex items-center gap-1 text-brand-success"><Clock className="w-3 h-3" /> Awaiting Man_Ver</span>
+                                    <span className="flex items-center gap-1 text-brand-success"><Clock className="w-3 h-3" /> Awaiting Review</span>
                                     <span className="opacity-40 italic">T: {p.createdAt?.toDate().toLocaleTimeString()}</span>
                                  </div>
                               </div>
@@ -215,7 +215,7 @@ export default function ManagePayments() {
                                  <button onClick={() => handleAction(p, "reject")} disabled={processingId === p.id} className="w-12 h-12 flex items-center justify-center rounded-xl bg-red-500/5 text-red-500 hover:bg-red-500 hover:text-white transition-all"><XCircle className="w-5 h-5" /></button>
                                  <button onClick={() => handleAction(p, "approve")} disabled={processingId === p.id} className="h-12 px-6 bg-brand-success hover:bg-green-600 text-white font-black text-[10px] uppercase tracking-[0.2em] rounded-xl flex items-center gap-2">
                                     {processingId === p.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                                    AUTH
+                                    Approve
                                  </button>
                               </div>
                            </div>
@@ -227,7 +227,7 @@ export default function ManagePayments() {
             ) : (
                <Card className="space-y-6">
                   <div className="flex items-center justify-between">
-                     <CardTitle className="text-xs uppercase italic tracking-tighter">Transmission Ledger</CardTitle>
+                     <CardTitle className="text-xs uppercase italic tracking-tighter">Payment History</CardTitle>
                      <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input 

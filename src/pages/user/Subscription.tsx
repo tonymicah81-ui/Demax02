@@ -93,7 +93,7 @@ export default function Subscription() {
     const finalPrice = getPrice(model.price);
 
     if ((profile.balance || 0) < finalPrice) {
-      alert("Insufficient funds. Visit the Fiscal Terminal to add capital.");
+      alert("Insufficient funds. Please add funds to your Wallet first.");
       window.location.href = "/wallet";
       return;
     }
@@ -151,7 +151,7 @@ export default function Subscription() {
      return (
         <div className="h-96 flex flex-col items-center justify-center space-y-4">
            <Loader2 className="w-10 h-10 animate-spin text-brand-accent" />
-           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Syncing Subscription Fleet...</p>
+           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Loading plans...</p>
         </div>
      );
   }
@@ -176,7 +176,7 @@ export default function Subscription() {
                 onChange={(e) => setSelectedProjectId(e.target.value)}
                 className="w-full bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-2xl p-5 text-xs font-black uppercase focus:outline-none focus:border-brand-accent transition-all text-brand-text-bold dark:text-white"
               >
-                <option value="">-- INITIALIZE PROJECT SELECTION --</option>
+                <option value="">-- Select a project --</option>
                 {projects.map(p => (
                   <option key={p.id} value={p.id}>PROJECT: {p.name}</option>
                 ))}
@@ -262,7 +262,7 @@ export default function Subscription() {
                              )}
                           >
                              {processingId === s.id ? <Loader2 className="w-4 h-4 animate-spin" /> : 
-                              isActive ? <><CheckCircle2 className="w-4 h-4 mr-2" /> OPERATIONAL</> : "ACTIVATE"}
+                              isActive ? <><CheckCircle2 className="w-4 h-4 mr-2" /> Active</> : "Activate"}
                           </Button>
                        </div>
                     </Card>
@@ -274,15 +274,15 @@ export default function Subscription() {
 
         <div className="space-y-6">
            <Card className="bg-brand-primary text-white border-none shadow-2xl relative overflow-hidden group">
-              <CardTitle className="text-white italic tracking-tighter uppercase text-sm relative z-10">Fleet Status</CardTitle>
+              <CardTitle className="text-white italic tracking-tighter uppercase text-sm relative z-10">Project Status</CardTitle>
               <div className="mt-8 space-y-6 relative z-10">
                  <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
                     <span className="text-slate-400">Project Status</span>
-                    <span className={selectedProjectId ? "text-brand-success" : "text-amber-500"}>{selectedProjectId ? 'NODE_LOCKED' : 'AWAITING_SYNC'}</span>
+                    <span className={selectedProjectId ? "text-brand-success" : "text-amber-500"}>{selectedProjectId ? 'Selected' : 'None selected'}</span>
                  </div>
                  <div className="p-4 bg-white/5 rounded-xl border border-white/5">
                     <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed italic">
-                       Subscriptions are project-specific. Activating a service module for one node does not replicate across the ecosystem.
+                       Subscriptions are project-specific. Activating a service for one project does not apply to other projects.
                     </p>
                  </div>
               </div>

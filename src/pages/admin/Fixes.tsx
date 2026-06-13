@@ -72,9 +72,9 @@ export default function ManageFixes() {
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-brand-border dark:border-white/5">
         <div>
-          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic leading-none">Engine_Fixes</h1>
+          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic leading-none">Support Fixes</h1>
           <p className="text-brand-accent font-black mt-2 uppercase tracking-[0.2em] text-[10px] italic">
-            Anomaly Restoration Dashboard // Admin v2.1
+            Review and resolve client-reported project issues
           </p>
         </div>
         <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl overflow-x-auto max-w-full">
@@ -97,12 +97,12 @@ export default function ManageFixes() {
         {loading ? (
           <div className="h-64 flex flex-col items-center justify-center space-y-4">
              <Loader2 className="w-10 h-10 animate-spin text-brand-accent" />
-             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">Syncing Repair Logs</p>
+             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">Loading fixes...</p>
           </div>
         ) : filteredFixes.length === 0 ? (
           <div className="h-64 flex flex-col items-center justify-center space-y-4 border border-dashed border-brand-border rounded-3xl opacity-30">
              <CheckCircle2 className="w-12 h-12 text-slate-400" />
-             <p className="text-sm font-black uppercase tracking-widest italic">All Anomalies Restored</p>
+             <p className="text-sm font-black uppercase tracking-widest italic">All issues resolved</p>
           </div>
         ) : (
           <div className="grid gap-4">
@@ -131,7 +131,7 @@ export default function ManageFixes() {
 
                     <div className="flex flex-wrap items-center gap-4">
                        <div className="flex flex-col gap-1 items-end">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Update Protocol_</span>
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Update Status</span>
                           <div className="flex gap-1">
                              {statuses.map(st => (
                                <button
@@ -154,7 +154,7 @@ export default function ManageFixes() {
                        </div>
                        <div className="h-10 w-px bg-brand-border dark:bg-white/5 mx-2 hidden lg:block" />
                        <Button variant="outline" size="sm" className="h-12 px-6 uppercase text-[10px] tracking-widest gap-2">
-                          <MessageSquare className="w-3 h-3" /> RELAY_USER
+                          <MessageSquare className="w-3 h-3" /> Notify User
                        </Button>
                     </div>
                  </div>
@@ -167,9 +167,9 @@ export default function ManageFixes() {
       <div className="p-8 bg-slate-50 dark:bg-slate-900 rounded-3xl border border-brand-border dark:border-white/5 flex gap-6 items-start">
          <AlertCircle className="w-6 h-6 text-brand-accent shrink-0 mt-1" />
          <div className="space-y-4">
-            <h3 className="text-sm font-black text-brand-text-bold dark:text-white uppercase italic tracking-tighter">Maintenance Protocol</h3>
+            <h3 className="text-sm font-black text-brand-text-bold dark:text-white uppercase italic tracking-tighter">Fix Workflow</h3>
             <p className="text-[11px] text-slate-500 font-medium leading-relaxed uppercase">
-              Fix requests are logged when a project reaches the <span className="text-brand-success font-black">DELIVERED</span> status and an anomaly is reported by the user. admins must verify each fix manually before marking as <span className="text-brand-success font-black">COMPLETED</span>.
+              Fix requests are submitted by users when a project reaches the <span className="text-brand-success font-black">DELIVERED</span> status. Admins must review and update the status manually before marking as <span className="text-brand-success font-black">COMPLETED</span>.
             </p>
          </div>
       </div>

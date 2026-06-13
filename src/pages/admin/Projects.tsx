@@ -237,9 +237,9 @@ export default function AdminProjects() {
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-brand-border dark:border-white/5">
         <div>
-          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">Operational_Projects</h1>
+          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">Project Management</h1>
           <p className="text-brand-accent font-black mt-2 uppercase tracking-[0.2em] text-[10px] italic">
-            Deployment Control // Active Asset Stream
+            View and manage all client projects
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -376,8 +376,8 @@ export default function AdminProjects() {
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white dark:bg-slate-900 rounded-[40px] border border-brand-border dark:border-white/10 shadow-2xl max-w-2xl w-full overflow-hidden">
                  <div className="p-10 border-b border-brand-border dark:border-white/5 flex justify-between items-center bg-slate-50 dark:bg-slate-950/50">
                     <div>
-                       <h2 className="text-3xl font-black uppercase italic tracking-tighter mb-1">Assemble_Deployment</h2>
-                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Protocol Generation Module v4.1</p>
+                       <h2 className="text-3xl font-black uppercase italic tracking-tighter mb-1">New Project</h2>
+                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Add a new project for a client</p>
                     </div>
                     <button onClick={() => setShowModal(false)} className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-red-500 transition-all">✕</button>
                  </div>
@@ -386,7 +386,7 @@ export default function AdminProjects() {
                     <div className="grid md:grid-cols-2 gap-8">
                        <div className="space-y-6">
                           <div className="space-y-3">
-                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Target Node Email</label>
+                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">User Email</label>
                              <div className="flex gap-2">
                                 <input 
                                   type="text" 

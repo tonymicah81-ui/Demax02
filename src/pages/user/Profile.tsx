@@ -9,8 +9,8 @@ export default function Profile() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">Identity Management</h1>
-        <p className="text-slate-500 dark:text-slate-400 font-medium mt-1 uppercase tracking-widest text-[10px]">Portal Protocol v1.2 // User Statistics</p>
+        <h1 className="text-3xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">My Profile</h1>
+        <p className="text-slate-500 dark:text-slate-400 font-medium mt-1 uppercase tracking-widest text-[10px]">Account details and security settings</p>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
@@ -21,7 +21,7 @@ export default function Profile() {
             </div>
             <div>
               <h2 className="text-2xl font-black text-brand-text-bold dark:text-white uppercase tracking-tight italic">
-                {profile?.username || "Authorized Entity"}
+                {profile?.username || "User"}
               </h2>
               <p className="text-brand-accent font-black text-[10px] uppercase tracking-[0.3em] mt-1 italic">
                 Status::{profile?.status || "active"} // Role::{profile?.role || "standard"}
@@ -62,7 +62,7 @@ export default function Profile() {
                     <Shield className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-500 uppercase font-black">Security Clearance</p>
+                    <p className="text-[10px] text-slate-500 uppercase font-black">Role</p>
                     <p className="text-sm font-bold text-brand-text-bold dark:text-white uppercase">{profile?.role}</p>
                   </div>
                 </div>

@@ -114,7 +114,7 @@ export default function AdminSessions() {
         <div>
           <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">Active Sessions</h1>
           <p className="text-brand-accent font-black mt-2 uppercase tracking-[0.2em] text-[10px] italic">
-            Identity Matrix // {sessions.length} Live Session(s)
+            Active Sessions // {sessions.length} Live
           </p>
         </div>
         <div className="relative">

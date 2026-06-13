@@ -196,7 +196,7 @@ export default function UserDashboard() {
                           onClick={() => setShowFixModal({ projectId: p.id, projectName: p.name })}
                           className="bg-amber-500 hover:bg-amber-600 text-white gap-2 text-[10px] h-10 px-6 shadow-lg shadow-amber-500/20"
                         >
-                          <Wrench className="w-3 h-3" /> STATE_FIX
+                          <Wrench className="w-3 h-3" /> Report Issue
                         </Button>
                       ) : (
                         <Button variant="outline" size="sm" className="h-10 px-6 uppercase text-[9px] tracking-widest">View Progress</Button>
@@ -211,7 +211,7 @@ export default function UserDashboard() {
 
         <Card className="space-y-6">
           <div className="flex items-center justify-between">
-            <CardTitle className="uppercase italic tracking-tighter">System Relays</CardTitle>
+            <CardTitle className="uppercase italic tracking-tighter">Recent Notifications</CardTitle>
             <div className="w-2 h-2 rounded-full bg-brand-success shadow-[0_0_10px_rgba(34,197,94,0.5)] animate-pulse" />
           </div>
           <div className="space-y-4">

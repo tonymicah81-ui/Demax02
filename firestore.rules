@@ -419,7 +419,7 @@ service cloud.firestore {
     // ═══════════════════════════════════════════════════════════════
 
     match /platform_settings/{docId} {
-      allow read: if docId in ['loading', 'general'] || isAdmin();
+      allow read: if docId in ['loading', 'general', 'subscriptions'] || isAdmin();
       allow write: if isSuperAdmin();
     }
 

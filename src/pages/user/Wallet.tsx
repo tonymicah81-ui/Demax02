@@ -84,13 +84,13 @@ export default function WalletPage() {
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-brand-border dark:border-white/5">
         <div>
-          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic leading-none">Fiscal Terminal</h1>
+          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic leading-none">Wallet</h1>
           <p className="text-brand-accent font-black mt-2 uppercase tracking-[0.2em] text-[10px] italic">
-            Asset Ledger // Balance Management v2.1
+            Manage your balance and payment history
           </p>
         </div>
         <Button onClick={() => setShowAddFunds(true)} className="gap-2 bg-brand-success hover:bg-green-600 shadow-xl shadow-green-500/20">
-          <Plus className="w-4 h-4" /> ADD_FUNDS
+          <Plus className="w-4 h-4" /> Add Funds
         </Button>
       </div>
 
@@ -116,7 +116,7 @@ export default function WalletPage() {
            </Card>
 
            <Card className="border shadow-md bg-white dark:bg-slate-900">
-              <CardTitle className="text-[10px] font-black uppercase tracking-widest italic mb-6 text-slate-400">Payment Protocol_</CardTitle>
+              <CardTitle className="text-[10px] font-black uppercase tracking-widest italic mb-6 text-slate-400">Payment Instructions</CardTitle>
               {bankDetails ? (
                 <div className="space-y-4">
                    <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-brand-border dark:border-white/5 font-mono text-[10px] text-brand-text dark:text-white uppercase leading-relaxed relative overflow-hidden">
@@ -142,14 +142,14 @@ export default function WalletPage() {
         <div className="lg:col-span-2">
            <Card className="h-full border shadow-md bg-white dark:bg-slate-900">
               <div className="flex items-center justify-between mb-8">
-                 <CardTitle className="text-sm italic uppercase tracking-tighter">Transaction Registry</CardTitle>
+                 <CardTitle className="text-sm italic uppercase tracking-tighter">Transaction History</CardTitle>
                  <History className="w-4 h-4 text-slate-300" />
               </div>
               <div className="space-y-3">
                  {loading ? (
                     <div className="py-12 flex flex-col items-center justify-center space-y-4">
                        <Loader2 className="w-8 h-8 animate-spin text-brand-accent" />
-                       <p className="text-[10px] font-mono text-slate-400">SYNCING_LEDGER...</p>
+                       <p className="text-[10px] font-mono text-slate-400">Loading transactions...</p>
                     </div>
                  ) : transactions.length === 0 ? (
                     <div className="py-12 text-center opacity-30 italic font-black text-sm uppercase tracking-widest">No Logged Activities</div>
@@ -264,7 +264,7 @@ export default function WalletPage() {
                  </div>
 
                  <Button type="submit" disabled={submitting} className="w-full h-16 bg-brand-primary hover:bg-brand-primary/90 text-white shadow-xl shadow-brand-primary/20">
-                    {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "PROPOSE FISCAL TRANSFUSION"}
+                    {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Submit Payment Request"}
                  </Button>
                  
                  <p className="text-[8px] text-center text-slate-500 uppercase font-bold tracking-widest px-4 leading-relaxed opacity-50">

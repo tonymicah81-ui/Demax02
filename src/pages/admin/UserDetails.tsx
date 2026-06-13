@@ -319,7 +319,7 @@ export default function UserDetails() {
 
   if (!profile) return (
     <div className="p-10 text-center">
-      <p>Entity not found.</p>
+      <p>User not found.</p>
       <Button onClick={() => navigate(-1)} className="mt-4">Return</Button>
     </div>
   );
@@ -344,9 +344,9 @@ export default function UserDetails() {
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div>
-          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">Entity_Intel</h1>
+          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">User Details</h1>
           <p className="text-brand-accent font-black mt-1 uppercase tracking-[0.2em] text-[10px] italic">
-            Deep Dossier // {profile.email}
+            Client profile // {profile.email}
           </p>
         </div>
       </div>
@@ -426,7 +426,7 @@ export default function UserDetails() {
           {activeTab === "overview" && (
             <div className="grid md:grid-cols-2 gap-6">
               <Card className="space-y-4">
-                <CardTitle className="uppercase italic tracking-tighter">Identity Details</CardTitle>
+                <CardTitle className="uppercase italic tracking-tighter">User Information</CardTitle>
                 {[
                   { label: "Email", value: profile.email },
                   { label: "Phone", value: profile.phoneNumber || "—" },

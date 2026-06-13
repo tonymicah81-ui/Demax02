@@ -73,9 +73,9 @@ export default function ManageUsers() {
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-brand-border dark:border-white/5">
         <div>
-          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">Entity Registry</h1>
+          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">Users</h1>
           <p className="text-brand-accent font-black mt-2 uppercase tracking-[0.2em] text-[10px] italic">
-            Durex Identity Database // Population Monitoring
+            Manage accounts, roles, and access status
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -83,7 +83,7 @@ export default function ManageUsers() {
              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
              <input 
                type="text" 
-               placeholder="IDENTITY_SEARCH..." 
+               placeholder="Search users..." 
                value={searchQuery}
                onChange={(e) => setSearchQuery(e.target.value)}
                className="bg-white dark:bg-slate-900 border border-brand-border dark:border-white/5 rounded-xl pl-10 pr-4 py-3 text-xs font-mono focus:outline-none focus:border-brand-accent transition-all uppercase w-64" 
@@ -100,10 +100,10 @@ export default function ManageUsers() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-950 border-b border-brand-border dark:border-white/5">
-                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Designation</th>
-                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Security Clearance</th>
-                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Internal Status</th>
-                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Initialized At</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">User</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Role</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Status</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Joined</th>
                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">Actions</th>
               </tr>
             </thead>
@@ -165,7 +165,7 @@ export default function ManageUsers() {
                         {updatingId === profile.uid ? <Loader2 className="w-4 h-4 animate-spin" /> : (
                           <>
                              {profile.status === 'active' ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-                             {profile.status === 'active' ? "DEACTIVATE" : "INITIALIZE"}
+                             {profile.status === 'active' ? "Suspend" : "Activate"}
                           </>
                         )}
                       </Button>
@@ -183,7 +183,7 @@ export default function ManageUsers() {
         {loading && (
           <div className="py-20 flex flex-col items-center justify-center space-y-4 opacity-50">
              <Loader2 className="w-8 h-8 animate-spin text-brand-accent" />
-             <p className="text-[10px] font-black uppercase tracking-[0.3em]">Downloading Entity Stream...</p>
+             <p className="text-[10px] font-black uppercase tracking-[0.3em]">Loading users...</p>
           </div>
         )}
       </div>

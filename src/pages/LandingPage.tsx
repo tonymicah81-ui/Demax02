@@ -140,6 +140,22 @@ export default function LandingPage() {
     return () => unsub();
   }, []);
 
+  const [liveModels, setLiveModels] = useState<any[]>([]);
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "subscription_models"), (snap) => {
+      setLiveModels(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, []);
+
+  const activePlans = liveModels.length >= 3
+    ? liveModels.slice(0, 3).map((m, i) => ({
+        ...PLANS[i],
+        name: m.name,
+        price: m.price,
+      }))
+    : PLANS;
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => { if (entry.isIntersecting) setStatsActive(true); },
@@ -568,7 +584,7 @@ export default function LandingPage() {
           </motion.div>
 
           <div className="grid md:grid-cols-3 gap-6">
-            {PLANS.map((plan, i) => (
+            {activePlans.map((plan, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1, duration: 0.6 }}
                 className={`relative bg-white dark:bg-slate-900 rounded-2xl border-2 ${plan.borderColor} p-6 sm:p-8 flex flex-col shadow-sm ${plan.popular ? "shadow-lg" : ""}`}>
                 {plan.popular && (

@@ -249,7 +249,7 @@ export default function Cart() {
               >
                 {checkingOut
                   ? <Loader2 className="w-5 h-5 animate-spin" />
-                  : <><PackageCheck className="w-5 h-5" /> INITIALIZE DEPLOYMENT</>
+                  : <><PackageCheck className="w-5 h-5" /> Place Order</>
                 }
               </Button>
 
@@ -288,8 +288,8 @@ export default function Cart() {
             >
               <div className="bg-brand-success/10 p-10 text-center border-b border-brand-success/20">
                 <CheckCircle2 className="w-16 h-16 text-brand-success mx-auto mb-4" />
-                <h2 className="text-2xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">Deployment Successful</h2>
-                <p className="text-[10px] font-black text-brand-success uppercase tracking-[0.3em] mt-2">Assets Provisioned</p>
+                <h2 className="text-2xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">Order Placed!</h2>
+                <p className="text-[10px] font-black text-brand-success uppercase tracking-[0.3em] mt-2">Purchase Successful</p>
               </div>
 
               <div className="p-8 space-y-4">

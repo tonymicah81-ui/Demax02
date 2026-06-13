@@ -65,16 +65,25 @@ export interface GeneralSettings {
   updatedAt?: any;
 }
 
+export interface SubscriptionSettings {
+  emailBasicPrice: number;
+  emailProPrice: number;
+  botPrice: number;
+  updatedAt?: any;
+}
+
 export interface PlatformSettings {
   cloudinary: CloudinarySettings;
   loading: LoadingSettings;
   general: GeneralSettings;
+  subscriptions: SubscriptionSettings;
 }
 
 const DEFAULTS: PlatformSettings = {
   cloudinary: { cloudName: '', uploadPreset: '', apiKey: '' },
   loading: { effect: 'default', logoUrl: '', customHTML: '', customCSS: '' },
   general: { supportEmail: 'support@durax.com' },
+  subscriptions: { emailBasicPrice: 15, emailProPrice: 30, botPrice: 20 },
 };
 
 export async function loadSetting<K extends keyof PlatformSettings>(key: K): Promise<PlatformSettings[K]> {
