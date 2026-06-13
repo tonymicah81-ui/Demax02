@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
-import { getFirestore, doc, collection, query, where, onSnapshot, setDoc, updateDoc, getDoc, getDocs, addDoc, serverTimestamp, getDocFromServer, orderBy, limit, deleteDoc, runTransaction, writeBatch } from "firebase/firestore";
+import { getFirestore, doc, collection, query, where, onSnapshot, setDoc, updateDoc, getDoc, getDocs, addDoc, serverTimestamp, getDocFromServer, orderBy, limit, deleteDoc, runTransaction, writeBatch, increment } from "firebase/firestore";
 import firebaseConfig from "../firebase-applet-config.json";
 
 // Initialize Firebase
@@ -93,5 +93,6 @@ export {
   limit,
   deleteDoc,
   runTransaction,
-  writeBatch
+  writeBatch,
+  increment
 };
