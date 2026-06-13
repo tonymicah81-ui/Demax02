@@ -37,3 +37,10 @@ externalPort = 80
 [[ports]]
 localPort = 5001
 externalPort = 3001
+
+[userenv]
+
+[userenv.shared]
+VITE_CLOUDINARY_CLOUD_NAME = "dbqyo1drz"
+VITE_CLOUDINARY_UPLOAD_PRESET = "ml_default"
+VITE_CLOUDINARY_API_KEY = "833482958867845"
