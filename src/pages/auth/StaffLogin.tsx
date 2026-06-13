@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Navigate, useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { ShieldCheck, Loader2, Mail, Lock, Eye, EyeOff, LayoutGrid } from "lucide-react";
+import { Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../../AuthContext";
 import { Button } from "../../components/ui/Button";
 import { Logo } from "../../components/ui/Logo";
-import { doc, getDoc, db } from "../../firebase";
+import { auth, doc, getDoc, db } from "../../firebase";
 
 export default function StaffLogin() {
   const { user, signin, signout } = useAuth();
@@ -24,26 +24,29 @@ export default function StaffLogin() {
     setLoading(true);
     setError("");
     try {
-      const userCredential = await signin(email, password);
-      
-      const adminRef = doc(db, 'admins', (userCredential as any)?.user?.uid || "");
+      await signin(email, password);
+
+      const uid = auth.currentUser?.uid;
+      if (!uid) throw new Error("Sign-in failed. Please try again.");
+
+      const adminRef = doc(db, 'admins', uid);
       const adminSnap = await getDoc(adminRef);
 
       if (!adminSnap.exists()) {
         await signout();
-        throw new Error("ACCESS_DENIED: STAFF_RECORD_NOT_FOUND");
+        throw new Error("Staff account not found. Contact your administrator.");
       }
 
       const data = adminSnap.data();
       if (data.status === 'inactive') {
         await signout();
-        throw new Error("ACCESS_DENIED: STAFF_ACCOUNT_PENDING_APPROVAL");
+        throw new Error("Your account is pending approval. Contact your administrator.");
       }
 
       navigate("/dashboard");
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Staff authentication failed.");
+      setError(err.message || "Sign-in failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -59,14 +62,14 @@ export default function StaffLogin() {
         <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl border border-brand-border dark:border-white/5 overflow-hidden">
             <div className="p-12 text-center bg-brand-accent/5 dark:bg-brand-accent/10 border-b border-brand-border dark:border-white/5">
                <Logo size="lg" className="mx-auto mb-6 bg-white dark:bg-slate-800 p-4 rounded-3xl inline-flex shadow-lg" showText={false} />
-               <h1 className="text-3xl font-black text-brand-text-bold dark:text-white tracking-tighter uppercase italic">Staff HQ</h1>
-              <p className="text-slate-500 mt-2 text-[10px] font-black uppercase tracking-[0.4em]">Internal Logistics v2.1</p>
+               <h1 className="text-3xl font-black text-brand-text-bold dark:text-white tracking-tighter uppercase italic">Staff Portal</h1>
+              <p className="text-slate-500 mt-2 text-[10px] font-black uppercase tracking-[0.4em]">Internal Access</p>
            </div>
 
            <div className="p-12 space-y-8">
               <form onSubmit={handleLogin} className="space-y-6">
                  <div className="space-y-2">
-                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Professional Email</label>
+                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Email</label>
                    <input 
                      type="email" 
                      required
@@ -78,7 +81,7 @@ export default function StaffLogin() {
                  </div>
 
                  <div className="space-y-2">
-                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Security Credential</label>
+                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Password</label>
                    <div className="relative">
                       <input 
                         type={showPassword ? "text" : "password"} 
@@ -103,7 +106,7 @@ export default function StaffLogin() {
                    disabled={loading}
                    className="w-full h-16 rounded-2xl bg-brand-primary dark:bg-brand-accent font-black uppercase tracking-[0.2em] shadow-xl text-xs"
                  >
-                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "ENTER STAFF TERMINAL_"}
+                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "SIGN IN"}
                  </Button>
               </form>
 
@@ -115,20 +118,20 @@ export default function StaffLogin() {
                      exit={{ opacity: 0, scale: 0.95 }}
                      className="p-5 bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 rounded-2xl text-red-600 dark:text-red-400 text-[10px] font-black uppercase tracking-widest text-center italic"
                   >
-                    SYSTEM_ERROR:: {error}
+                    {error}
                   </motion.div>
                 )}
               </AnimatePresence>
 
               <div className="pt-4 text-center">
                  <Link to="/company/vault" className="text-[10px] font-black text-slate-400 hover:text-brand-accent uppercase tracking-widest transition-colors">
-                   &lt; Back to Central Vault
+                   &lt; Back to Vault
                  </Link>
               </div>
            </div>
         </div>
         
-        <p className="text-center mt-12 text-[10px] font-black text-slate-400 uppercase tracking-[0.5em] opacity-40">Durex Team Logistics Engine // Build 8829-X</p>
+        <p className="text-center mt-12 text-[10px] font-black text-slate-400 uppercase tracking-[0.5em] opacity-40">Durex Team // Staff Portal</p>
       </motion.div>
     </div>
   );

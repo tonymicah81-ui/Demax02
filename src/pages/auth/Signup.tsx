@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Navigate, useNavigate, Link } from "react-router-dom";
-import { motion, AnimatePresence } from "motion/react";
-import { ShieldCheck, Loader2, Mail, Lock, Eye, EyeOff, User, Phone, CheckCircle2 } from "lucide-react";
+import { motion } from "motion/react";
+import { ShieldCheck, Loader2, Mail, Lock, Eye, EyeOff, User, Phone } from "lucide-react";
 import { useAuth } from "../../AuthContext";
 import { Button } from "../../components/ui/Button";
 import { Logo } from "../../components/ui/Logo";
@@ -28,7 +28,10 @@ export default function Signup() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      return setError("Security Lock: Passwords do not match.");
+      return setError("Passwords do not match.");
+    }
+    if (formData.password.length < 6) {
+      return setError("Password must be at least 6 characters.");
     }
     
     setLoading(true);
@@ -38,7 +41,7 @@ export default function Signup() {
       navigate("/dashboard");
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Registration failed. protocol rejected identity.");
+      setError(err.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -63,8 +66,8 @@ export default function Signup() {
           <div className="flex items-center gap-2 justify-center mb-6">
             <Logo size="lg" className="bg-white/10 p-3 rounded-2xl" showText={false} />
           </div>
-          <h1 className="text-3xl font-black text-white tracking-tighter uppercase italic leading-tight">Initialize Identity</h1>
-          <p className="text-slate-400 mt-2 text-xs font-mono uppercase tracking-[0.3em]">Protocol Registry v1.2</p>
+          <h1 className="text-3xl font-black text-white tracking-tighter uppercase italic leading-tight">Create Account</h1>
+          <p className="text-slate-400 mt-2 text-xs font-mono uppercase tracking-[0.3em]">Join the platform</p>
           
           <div className="absolute -top-10 -right-10 w-32 h-32 bg-brand-accent/20 rounded-full blur-3xl pointer-events-none" />
         </div>
@@ -73,7 +76,7 @@ export default function Signup() {
             <form onSubmit={handleSubmit} className="space-y-5">
                <div className="grid md:grid-cols-2 gap-5">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Target Username</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Username</label>
                     <div className="relative">
                       <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input 
@@ -83,12 +86,12 @@ export default function Signup() {
                         value={formData.username}
                         onChange={handleChange}
                         className="w-full bg-slate-50 dark:bg-slate-800/50 border border-brand-border dark:border-white/5 rounded-xl pl-12 pr-4 py-4 text-xs font-bold focus:outline-none focus:border-brand-accent transition-all uppercase"
-                        placeholder="ENTITY_NAME"
+                        placeholder="Your name"
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Signal Phone</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Phone Number</label>
                     <div className="relative">
                       <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input 
@@ -105,7 +108,7 @@ export default function Signup() {
                </div>
 
                <div className="space-y-2">
-                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Encrypted Email</label>
+                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Email</label>
                  <div className="relative">
                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                    <input 
@@ -115,14 +118,14 @@ export default function Signup() {
                      value={formData.email}
                      onChange={handleChange}
                      className="w-full bg-slate-50 dark:bg-slate-800/50 border border-brand-border dark:border-white/5 rounded-xl pl-12 pr-4 py-4 text-xs font-bold focus:outline-none focus:border-brand-accent transition-all"
-                     placeholder="SIGNAL@DUREX.CORE"
+                     placeholder="your@email.com"
                    />
                  </div>
                </div>
 
                <div className="grid md:grid-cols-2 gap-5">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Secure Password</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Password</label>
                     <div className="relative">
                       <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input 
@@ -144,7 +147,7 @@ export default function Signup() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Confirm Protocol</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Confirm Password</label>
                     <div className="relative">
                       <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input 
@@ -167,7 +170,7 @@ export default function Signup() {
                     </div>
                     <div>
                       <p className="text-[9px] font-black uppercase tracking-widest">2-Factor Authentication</p>
-                      <p className="text-[8px] text-slate-400 font-bold uppercase">Enhanced Security Relay</p>
+                      <p className="text-[8px] text-slate-400 font-bold uppercase">Extra login security</p>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -188,12 +191,12 @@ export default function Signup() {
                     disabled={loading}
                     className="w-full h-14 bg-brand-primary dark:bg-brand-accent hover:opacity-90 transition-all text-xs font-black shadow-xl"
                   >
-                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "INITIALIZE ACCOUNT_"}
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "CREATE ACCOUNT"}
                   </Button>
                </div>
 
                <p className="text-[10px] text-center text-slate-400 dark:text-slate-600 font-bold uppercase tracking-widest leading-relaxed">
-                 By initializing this session, you agree to our <Link to="/terms" className="text-brand-accent underline">Terms of Data Governance</Link>.
+                 By creating an account, you agree to our <Link to="/terms" className="text-brand-accent underline">Terms & Conditions</Link>.
                </p>
             </form>
 
@@ -203,17 +206,17 @@ export default function Signup() {
                  animate={{ opacity: 1, scale: 1 }}
                  className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 text-[10px] font-black uppercase tracking-widest text-center italic"
               >
-                CRITICAL_ERROR:: {error}
+                {error}
               </motion.div>
             )}
 
             <div className="pt-8 border-t border-brand-border dark:border-white/5 text-center">
-               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 italic">Already authenticated?</p>
+               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 italic">Already have an account?</p>
                <Link 
                  to="/login"
                  className="text-[11px] font-black text-brand-accent hover:underline uppercase tracking-[0.2em] italic"
                >
-                 &gt; Access Existing Identity Log
+                 &gt; Sign In
                </Link>
             </div>
         </div>
