@@ -1,0 +1,126 @@
+The Netlify deploy errored, with the following guidance provided:
+
+Relevant error lines
+- [line 61](#L61) shows the build command running "vite build".
+- [line 62](#L62) is the failing error: "sh: 1: vite: not found".
+- (There is an earlier npm internal message at [line 17](#L17)-[line 20](#L20) but the immediate build failure is the missing vite binary.)
+
+Diagnosis
+- Error type: runtime/build-time command not found.
+- Cause: the Vite CLI binary is not available in the build environment, so the npm script "vite build" cannot be executed. This commonly happens when Vite is listed only in devDependencies and Netlify's install step did not install devDependencies (or Vite is missing from package.json entirely).
+
+Required verification (do this first)
+- Verify vite is declared in your package.json (either dependencies or devDependencies): https://github.com/tonymicah81-ui/Demax02/blob/main/package.json
+
+Solutions (pick one)
+
+1) Preferred — Install devDependencies during Netlify build
+- Configure Netlify to install devDependencies so the Vite binary is present. Add (or update) netlify.toml with an environment flag that tells npm to include dev deps:
+
+```toml
+# netlify.toml
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NPM_FLAGS = "--include=dev"
+```
+
+- Commit that change and re-deploy. Alternatively, set the environment variable NPM_FLAGS = --include=dev in the Netlify UI (Site settings → Build & deploy → Environment → Edit variables).
+
+2) Alternative — Move Vite into production dependencies
+- If you prefer not to install devDependencies in CI, move Vite from devDependencies to dependencies so it is installed in production installs:
+  - Run locally: npm install vite --save
+  - Commit package.json and package-lock.json and push. This ensures vite is present during Netlify's install step.
+
+3) Quick workaround — Use a local-installed binary via npm exec
+- If vite is present in devDependencies and you want to avoid changing Netlify config, change build script to explicitly call npm exec which will use a project-installed binary only if it exists (but note this still requires devDependencies to be installed):
+  - package.json "scripts": { "build": "npm exec -- vite build" }
+
+Notes
+- If after making the above change you still see the npm internal error from [line 17](#L17)-[line 20](#L20), try clearing Netlify's cache and re-deploy. If Node version issues arise, follow Netlify docs for changing Node versions: https://docs.netlify.com/configure-builds/manage-dependencies/#node-js-and-javascript
+
+Summary
+- The build fails because the "vite" CLI is not available during the build ([line 62](#L62)). Verify vite is in package.json, then either make Netlify install devDependencies (set NPM_FLAGS="--include=dev") or move vite into dependencies so the binary is installed during the build.
+
+The relevant error logs are:
+
+Line 0: build-image version: ac6eb13fbf000e5c09ad677efd8b7c3c2d0142b6 (noble-new-builds)
+Line 1: buildbot version: a4e69ecd307ba0c352dfef5d0d39913f2dec70dc
+Line 2: Fetching cached dependencies
+Line 3: Failed to fetch cache, continuing with build
+Line 4: Starting to prepare the repo for build
+Line 5: No cached dependencies found. Cloning fresh repo
+Line 6: git clone --filter=blob:none https://github.com/tonymicah81-ui/Demax02
+Line 7: Preparing Git Reference refs/heads/main
+Line 8: Installing dependencies
+Line 9: mise ~/.config/mise/config.toml tools: python@3.14.3
+Line 10: mise ~/.config/mise/config.toml tools: ruby@3.4.8
+Line 11: mise ~/.config/mise/config.toml tools: go@1.26.2
+Line 12: v20.20.2 is already installed.
+Line 13: Now using node v20.20.2 (npm v10.8.2)
+Line 14: Enabling Node.js Corepack
+Line 15: No npm workspaces detected
+Line 16: Installing npm packages using npm version 10.8.2
+Line 17: npm error Exit handler never called!
+Line 18: npm error This is an error with npm itself. Please report this error at:
+Line 19: npm error   <https://github.com/npm/cli/issues>
+Line 20: npm error A complete log of this run can be found in: /opt/buildhome/.npm/_logs/2026-06-14T15_42_58_305Z-debug-0.log
+Line 21: npm packages installed
+Line 22: Successfully installed dependencies
+Line 23: Detected 1 framework(s)
+Line 24: "vite" at version "6.4.3"
+Line 25: Starting build script
+Line 26: Section completed: initializing
+Line 27: ​
+Line 28: Netlify Build                                                 
+Line 29: ────────────────────────────────────────────────────────────────
+Line 30: ​
+Line 44:   /opt/build/repo/netlify.toml
+Line 45: ​
+Line 46: ❯ Context
+Line 47:   production
+Line 48: ​
+Line 49: ❯ Installing extensions
+Line 50:    - neon
+Line 51: ​
+Line 52: ❯ Loading extensions
+Line 53:    - neon
+Line 54: Failed during stage 'building site': Build script returned non-zero exit code: 2
+Line 55: ​
+Line 56: build.command from netlify.toml                               
+Line 57: ────────────────────────────────────────────────────────────────
+Line 58: ​
+Line 59: $ npm run build
+Line 60: > react-example@0.0.0 build
+Line 61: > vite build
+Line 62: sh: 1: vite: not found
+Line 63: ​
+Line 64: "build.command" failed                                        
+Line 65: ────────────────────────────────────────────────────────────────
+Line 66: ​
+Line 67:   Error message
+Line 68:   Command failed with exit code 127: npm run build
+Line 69: ​
+Line 70:   Error location
+Line 71:   In build.command from netlify.toml:
+Line 72:   npm run build
+Line 73: ​
+Line 74:   Resolved config
+Line 75:   build:
+Line 76:     command: npm run build
+Line 77:     commandOrigin: config
+Line 78:     environment:
+Line 79:       - NODE_VERSION
+Line 80:     publish: /opt/build/repo/dist
+Line 81:     publishOrigin: config
+Line 82:   functionsDirectory: /opt/build/repo/netlify/functions
+Line 83:   redirects:
+Line 84:     - from: /*
+      status: 200
+      to: /index.html
+  redirectsOrigin: config
+Line 85: Build failed due to a user error: Build script returned non-zero exit code: 2
+Line 86: Failing build: Failed to build site
+Line 87: Finished processing build request in 1m35.081s
