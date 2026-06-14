@@ -38,3 +38,24 @@ Runs on port 5000.
 
 ## User Preferences
 - Keep Firebase as the auth/database layer (not replacing with Replit Auth/DB)
+
+## ⚠️ CRITICAL — npm Registry Warning (read before touching dependencies)
+
+Replit injects an internal registry (`package-firewall.replit.local`) into npm at the system level. This overrides `.npmrc` and env vars. Every time `npm install` runs inside Replit, `package-lock.json` gets URLs rewritten to this internal host — which **does not exist outside Replit** and breaks every Netlify deployment with `ENOTFOUND` errors.
+
+**Rule: never commit `package-lock.json` directly after running `npm install` in Replit.**
+
+After installing any package, always run this before committing:
+```bash
+sed -i 's|http://package-firewall.replit.local/npm|https://registry.npmjs.org|g' package-lock.json
+```
+
+Then verify it's clean:
+```bash
+grep -c "replit.local" package-lock.json
+# must output: 0
+```
+
+Only commit once the count is 0.
+
+**Why this matters:** The project deploys to Netlify. The lockfile is committed to GitHub. Netlify clones the repo and runs `npm install` — if the lockfile has `replit.local` URLs, the install fails completely and the site cannot deploy.
