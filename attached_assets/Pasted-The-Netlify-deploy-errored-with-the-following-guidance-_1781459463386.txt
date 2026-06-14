@@ -1,0 +1,128 @@
+The Netlify deploy errored, with the following guidance provided:
+
+- Relevant log lines
+  - Node installed v18.17.1: [line 12](#L12)
+  - Engine warnings that react-router / react-router-dom require Node >=20: [lines 240–249](#L240-L249)
+  - Dependency install returned non-zero exit: [line 250](#L250)
+  - Network DNS error trying to fetch from a Replit-only registry: [lines 251–256](#L251-L256) and the failing request to package-firewall.replit.local: [line 254](#L254)
+  - Final fail: Failed to install dependencies / Failing build: [lines 261–262](#L261-L262)
+
+Diagnosis
+- Primary failure: npm could not download packages because it attempted to resolve a private/internal registry host package-firewall.replit.local which is not reachable from Netlify. The network/DNS error is the fatal error that stops install ([lines 251–256](#L251-L256), [line 254](#L254)).
+- Secondary problem (warning that should be addressed): your build used Node v18 but react-router / react-router-dom state they require Node >=20 ([lines 12](#L12), [240–249](#L240-L249)). This is a compatibility warning that can become a hard failure depending on package behaviour.
+
+Cause
+- A registry override (likely an .npmrc or lockfile config created by Replit or similar) points npm to package-firewall.replit.local which only exists inside Replit. Netlify cannot resolve that host and npm install fails.
+- Node version on Netlify is 18.17.1 but some packages request Node >=20.
+
+Solution (steps to fix)
+1) Verify repository does not force the Replit registry
+   - Check for an .npmrc in the repo root that sets a custom registry:
+     - Verify file exists: https://github.com/tonymicah81-ui/Demax02/blob/main/.npmrc
+     - If present, remove it or change the registry to the public npm registry and commit the change.
+   - If .npmrc is not present, check package-lock.json (or yarn.lock/pnpm-lock.yaml) for occurrences of package-firewall.replit.local and regenerate the lockfile after setting the correct registry.
+
+2) Replace or remove the Replit registry entry
+   - To set the registry to the public npm registry, create/edit .npmrc in repo root with:
+```text
+registry=https://registry.npmjs.org/
+```
+   - Commit and push:
+```bash
+git add .npmrc
+git commit -m "Use public npm registry for CI builds"
+git push
+```
+   - Or remove the .npmrc entirely if it was injected by Replit:
+```bash
+git rm .npmrc
+git commit -m "Remove Replit npm registry override"
+git push
+```
+   - Alternatively, on Netlify you can set the registry at build time via a build command:
+```bash
+npm config set registry https://registry.npmjs.org/ && npm ci
+```
+   - If your lockfile references the Replit registry, regenerate it locally after ensuring the registry is set to npmjs.org:
+```bash
+# locally
+npm config set registry https://registry.npmjs.org/
+rm package-lock.json
+npm install
+git add package-lock.json
+git commit -m "Regenerate lockfile using public npm registry"
+git push
+```
+
+3) Fix the Node version mismatch (react-router requires Node >=20)
+   - In Netlify you can set the Node version via netlify.toml or provide an .nvmrc. See Netlify docs: https://docs.netlify.com/configure-builds/manage-dependencies/#node-js-and-javascript
+   - Example using netlify.toml (add to repo root or update existing):
+```toml
+[build.environment]
+  NODE_VERSION = "20"
+```
+   - Or add an .nvmrc with the version:
+```bash
+echo "20" > .nvmrc
+git add .nvmrc
+git commit -m "Use Node 20 for Netlify builds"
+git push
+```
+   - After this Netlify will use Node 20.x and the engine warnings should be resolved.
+
+4) Verify packages present in package.json before changing registry (per checklist)
+   - Confirm the packages you expect are in package.json (e.g. react-router, react-router-dom): https://github.com/tonymicah81-ui/Demax02/blob/main/package.json
+   - If a package is missing, add it to package.json and commit before trying to change build configuration.
+
+5) Re-run the Netlify build
+   - After removing/adjusting .npmrc (or regenerating lockfile) and updating Node version config, trigger a new deploy on Netlify.
+
+Notes / troubleshooting
+- If you still see requests to package-firewall.replit.local after removing .npmrc, search the repo for that hostname:
+```bash
+git grep "package-firewall.replit.local" || true
+```
+- Test locally by setting the registry and running npm install to ensure it succeeds before pushing to Netlify.
+
+This will remove the unreachable Replit registry reference (fixing the ENOTFOUND network failure shown at [lines 251–256](#L251-L256)) and align Node on Netlify to satisfy package engine requirements ([lines 240–249](#L240-L249)).
+
+The relevant error logs are:
+
+Line 0: build-image version: ac6eb13fbf000e5c09ad677efd8b7c3c2d0142b6 (noble-new-builds)
+Line 1: buildbot version: a4e69ecd307ba0c352dfef5d0d39913f2dec70dc
+Line 2: Fetching cached dependencies
+Line 3: Failed to fetch cache, continuing with build
+Line 4: Starting to prepare the repo for build
+Line 5: No cached dependencies found. Cloning fresh repo
+Line 6: git clone --filter=blob:none https://github.com/tonymicah81-ui/Demax02
+Line 7: Preparing Git Reference refs/heads/main
+Line 8: Installing dependencies
+Line 9: mise ~/.config/mise/config.toml tools: python@3.14.3
+Line 10: mise ~/.config/mise/config.toml tools: ruby@3.4.8
+Line 11: mise ~/.config/mise/config.toml tools: go@1.26.2
+Line 12: Downloading and installing node v18.17.1...
+Line 13: Downloading https://nodejs.org/dist/v18.17.1/node-v18.17.1-linux-x64.tar.xz...
+Line 240: npm WARN EBADENGINE Unsupported engine {
+Line 241: npm WARN EBADENGINE   package: 'react-router@7.17.0',
+Line 242: npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+Line 243: npm WARN EBADENGINE   current: { node: 'v18.17.1', npm: '9.6.7' }
+Line 244: npm WARN EBADENGINE }
+Line 245: npm WARN EBADENGINE Unsupported engine {
+Line 246: npm WARN EBADENGINE   package: 'react-router-dom@7.17.0',
+Line 247: npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+Line 248: npm WARN EBADENGINE   current: { node: 'v18.17.1', npm: '9.6.7' }
+Line 249: npm WARN EBADENGINE }
+Line 250: Failed during stage 'Install dependencies': dependency_installation script returned non-zero exit code: 1
+Line 251: npm ERR! code ENOTFOUND
+Line 252: npm ERR! syscall getaddrinfo
+Line 253: npm ERR! errno ENOTFOUND
+Line 254: npm ERR! network request to http://package-firewall.replit.local/npm/websocket-extensions/-/websocket-extensions-0.1.4.tgz faile
+Line 255: npm ERR! network This is a problem related to network connectivity.
+Line 256: npm ERR! network In most cases you are behind a proxy or have bad network settings.
+Line 257: npm ERR! network
+Line 258: npm ERR! network If you are behind a proxy, please make sure that the
+Line 259: npm ERR! network 'proxy' config is set properly.  See: 'npm help config'
+Line 260: npm ERR! A complete log of this run can be found in: /opt/buildhome/.npm/_logs/2026-06-14T17_41_01_146Z-debug-0.log
+Line 261: Error during npm install
+Line 262: Failing build: Failed to install dependencies
+Line 263: Finished processing build request in 1m17.656s
