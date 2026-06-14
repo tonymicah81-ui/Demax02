@@ -76,17 +76,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const userRef = doc(db, 'users', u.uid);
           const adminRef = doc(db, 'admins', u.uid);
 
-          const userSnap = await getDoc(userRef);
-          const targetRef = userSnap.exists() ? userRef : adminRef;
+          // Listen to both collections simultaneously.
+          // This handles the signup race condition where onAuthStateChanged fires
+          // before setDoc(users/uid) completes — userRef will fire again once created.
+          // userRef always takes priority over adminRef.
+          let profileLoaded = false;
 
-          unsubscribeProfile = onSnapshot(targetRef, (snap) => {
+          const unsubUser = onSnapshot(userRef, (snap) => {
             if (snap.exists()) {
+              profileLoaded = true;
+              setProfile({ uid: snap.id, ...snap.data() } as UserProfile);
+              setLoading(false);
+            }
+          });
+
+          const unsubAdmin = onSnapshot(adminRef, (snap) => {
+            if (profileLoaded) return;
+            if (snap.exists()) {
+              profileLoaded = true;
               setProfile({ uid: snap.id, ...snap.data() } as UserProfile);
             } else {
               setProfile(null);
             }
             setLoading(false);
           });
+
+          unsubscribeProfile = () => {
+            unsubUser();
+            unsubAdmin();
+          };
         } catch (error) {
           console.error('Error fetching profile:', error);
           setLoading(false);
