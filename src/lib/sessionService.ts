@@ -34,7 +34,8 @@ export async function createSession(userId: string, role: string): Promise<strin
 
 export async function validateAndRefreshSession(): Promise<{ valid: boolean; expiresAt?: string }> {
   const sessionId = localStorage.getItem(SESSION_ID_KEY);
-  if (!sessionId) return { valid: false };
+  // No session ID means this is a fresh login — session will be created momentarily
+  if (!sessionId) return { valid: true };
 
   try {
     const snap = await getDoc(doc(db, "sessions", sessionId));
