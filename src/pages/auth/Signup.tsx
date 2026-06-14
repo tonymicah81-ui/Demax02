@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Navigate, useNavigate, Link } from "react-router-dom";
 import { motion } from "motion/react";
-import { ShieldCheck, Loader2, Mail, Lock, Eye, EyeOff, User, Phone } from "lucide-react";
+import { Loader2, Mail, Lock, Eye, EyeOff, User, Phone, Tag } from "lucide-react";
 import { useAuth } from "../../AuthContext";
 import { Button } from "../../components/ui/Button";
 import { Logo } from "../../components/ui/Logo";
@@ -18,7 +18,7 @@ export default function Signup() {
     email: "",
     password: "",
     confirmPassword: "",
-    tfaEnabled: false
+    referralCode: "",
   });
 
   const navigate = useNavigate();
@@ -163,26 +163,21 @@ export default function Signup() {
                   </div>
                </div>
 
-               <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-brand-border dark:border-white/5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-brand-accent/10 flex items-center justify-center text-brand-accent">
-                      <ShieldCheck className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-[9px] font-black uppercase tracking-widest">2-Factor Authentication</p>
-                      <p className="text-[8px] text-slate-400 font-bold uppercase">Extra login security</p>
-                    </div>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      name="tfaEnabled"
-                      checked={formData.tfaEnabled}
-                      onChange={handleChange}
-                      className="sr-only peer" 
-                    />
-                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none dark:peer-focus:ring-brand-accent rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-brand-accent"></div>
-                  </label>
+               <div className="space-y-2">
+                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">
+                   Referral Code <span className="text-slate-400 normal-case font-medium tracking-normal">(optional)</span>
+                 </label>
+                 <div className="relative">
+                   <Tag className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                   <input
+                     type="text"
+                     name="referralCode"
+                     value={formData.referralCode}
+                     onChange={handleChange}
+                     className="w-full bg-slate-50 dark:bg-slate-800/50 border border-brand-border dark:border-white/5 rounded-xl pl-12 pr-4 py-4 text-xs font-bold focus:outline-none focus:border-brand-accent transition-all uppercase placeholder:normal-case placeholder:font-normal"
+                     placeholder="Enter a referral code"
+                   />
+                 </div>
                </div>
 
                <div className="pt-4">
