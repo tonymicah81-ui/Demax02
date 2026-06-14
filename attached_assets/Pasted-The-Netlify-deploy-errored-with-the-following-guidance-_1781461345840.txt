@@ -1,0 +1,127 @@
+The Netlify deploy errored, with the following guidance provided:
+
+- Relevant log lines
+  - [line 86–89](#L86-L89) shows esbuild failing to resolve "cloudinary".
+  - [line 96–101](#L96-L101) is Netlify's explanation that a Function uses "cloudinary" but the dependency wasn't installed.
+  - [line 108](#L108) repeats the same bundler error.
+
+- Error type and cause
+  - Type: missing dependency at function-bundling time (esbuild/Netlify Functions).
+  - Cause: netlify/functions/sign-cloudinary.ts imports "cloudinary" but that package was not available to the functions bundler, so esbuild cannot resolve it. Netlify does not automatically install dependencies from a package.json inside a Functions folder, so either the package isn't declared in the reachable package.json or it wasn't installed for functions.
+
+- Solutions (pick one)
+
+  1) Recommended — install cloudinary at the project root (simplest)
+     - Verify cloudinary is in package.json or that the functions package.json was committed:
+       - Open your repo's top-level package.json and/or netlify/functions/package.json and confirm "cloudinary" appears in "dependencies".
+       - Repo file links: package.json (root) and the function file: https://github.com/tonymicah81-ui/Demax02/blob/main/netlify/functions/sign-cloudinary.ts
+     - If not present at root, install and commit:
+```bash
+# from repo root
+npm install --save cloudinary
+git add package.json package-lock.json
+git commit -m "Add cloudinary runtime dependency for Netlify Function"
+git push
+```
+     - Re-deploy. Netlify will bundle the function using the project dependencies and the error should go away.
+
+  2) If you keep a separate package.json inside netlify/functions
+     - Verify netlify/functions/package.json exists and lists "cloudinary".
+     - Have Netlify install the function's dependencies during build. Either:
+       - Add the Netlify plugin that installs functions dependencies by adding to netlify.toml:
+```toml
+[[plugins]]
+package = "@netlify/plugin-functions-install-core"
+```
+         Then commit netlify.toml and deploy. The plugin will install dependencies declared in netlify/functions/package.json before bundling.
+       - Or run an install step in your build command (in Netlify UI or netlify.toml). Example build command:
+```toml
+[build]
+  command = "cd netlify/functions && npm install && cd ../.. && npm run build"
+  publish = "dist"
+```
+         (Or add a root-level prebuild script that runs npm install inside the functions folder.)
+
+  3) Alternative: mark "cloudinary" as external (only after verifying the package is present)
+     - First verify the package is installed/declared (see step above).
+     - If you prefer not to bundle cloudinary into the function, add it to functions external modules in netlify.toml:
+```toml
+[functions]
+  external_node_modules = ["cloudinary"]
+```
+     - Commit and redeploy. This tells Netlify’s bundler not to bundle "cloudinary" (it will require it at runtime), so ensure the runtime environment has the dependency available.
+
+Notes
+- The quickest fix is to ensure "cloudinary" is listed in a package.json that Netlify will install (preferably the root package.json) and commit the updated package.json/package-lock.json, then redeploy.
+- No Node version changes appear necessary from the logs. If you do need to change Node versions later, use Netlify docs: https://docs.netlify.com/configure-builds/manage-dependencies/#node-js-and-javascript
+
+
+
+The relevant error logs are:
+
+Line 0: build-image version: ac6eb13fbf000e5c09ad677efd8b7c3c2d0142b6 (noble-new-builds)
+Line 1: buildbot version: a4e69ecd307ba0c352dfef5d0d39913f2dec70dc
+Line 2: Fetching cached dependencies
+Line 3: Failed to fetch cache, continuing with build
+Line 4: Starting to prepare the repo for build
+Line 5: No cached dependencies found. Cloning fresh repo
+Line 6: git clone --filter=blob:none https://github.com/tonymicah81-ui/Demax02
+Line 7: Preparing Git Reference refs/heads/main
+Line 8: Installing dependencies
+Line 9: mise ~/.config/mise/config.toml tools: python@3.14.3
+Line 10: mise ~/.config/mise/config.toml tools: ruby@3.4.8
+Line 11: mise ~/.config/mise/config.toml tools: go@1.26.2
+Line 12: v20.20.2 is already installed.
+Line 13: Now using node v20.20.2 (npm v10.8.2)
+Line 76: ✓ built in 5.66s
+Line 77: ​
+Line 78: (build.command completed in 6.1s)
+Line 79: ​
+Line 80: Functions bundling                                            
+Line 81: ────────────────────────────────────────────────────────────────
+Line 82: ​
+Line 83: Packaging Functions from netlify/functions directory:
+Line 84:  - sign-cloudinary.ts
+Line 85: ​
+Line 86: ✘ [ERROR] Could not resolve "cloudinary"
+Line 87:     netlify/functions/sign-cloudinary.ts:1:33:
+Line 88:       1 │ import { v2 as cloudinary } from 'cloudinary';
+Line 89:         ╵                                  ~~~~~~~~~~~~
+Line 90:   You can mark the path "cloudinary" as external to exclude it from the bundle, which will remove this error and leave the unres
+Line 91: Failed during stage 'building site': Build script returned non-zero exit code: 2
+Line 92: ​
+Line 93: Dependencies installation error                               
+Line 94: ────────────────────────────────────────────────────────────────
+Line 95: ​
+Line 96:   Error message
+Line 97:   A Netlify Function is using "cloudinary" but that dependency has not been installed yet.
+Line 98: ​
+Line 99:   By default, dependencies inside a Netlify Function's "package.json" are not automatically installed.
+  There are several ways 
+Line 100:     - Removing your Function's "package.json" and adding the dependencies to the project's top-level "package.json" instead. Thi
+Line 101:     - Running "npm install" or "yarn" inside your Netlify Function in your build command.
+Line 102:     - Adding the following plugin to your "netlify.toml":
+Line 103: ​
+Line 104:   [[plugins]]
+Line 105:   package = "@netlify/plugin-functions-install-core"
+Line 106: ​​
+Line 107:   Build failed with 1 error:
+Line 108:   netlify/functions/sign-cloudinary.ts:1:33: ERROR: Could not resolve "cloudinary"
+Line 109: ​
+Line 110:   Resolved config
+Line 111:   build:
+Line 112:     command: npm run build
+Line 113:     commandOrigin: config
+Line 114:     environment:
+Line 115:       - NODE_VERSION
+Line 116:     publish: /opt/build/repo/dist
+Line 117:     publishOrigin: config
+Line 118:   functionsDirectory: /opt/build/repo/netlify/functions
+Line 119:   redirects:
+Line 120:     - from: /*
+      status: 200
+      to: /index.html
+  redirectsOrigin: config
+Line 121: Build failed due to a user error: Build script returned non-zero exit code: 2
+Line 122: Failing build: Failed to build site
+Line 123: Finished processing build request in 37.285s
