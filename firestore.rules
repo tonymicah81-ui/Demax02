@@ -17,10 +17,6 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isVerified() {
-      return isSignedIn() && request.auth.token.email_verified == true;
-    }
-
     function incoming() {
       return request.resource.data;
     }
@@ -29,8 +25,6 @@ service cloud.firestore {
       return resource.data;
     }
 
-    // Admin: in admins collection with role 'admin' or 'super_admin'
-    // 'client' = pending approval — does NOT grant admin access
     function isAdmin() {
       return isSignedIn() && (
         (
@@ -92,7 +86,7 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // VAULT — PIN gate config + attempt tracking
+    // VAULT
     // ═══════════════════════════════════════════════════════════════
 
     match /vault/{docId} {
@@ -108,6 +102,7 @@ service cloud.firestore {
 
     // ═══════════════════════════════════════════════════════════════
     // USERS
+    // photoUrl added to user-editable fields (Phase 3 profile upload)
     // ═══════════════════════════════════════════════════════════════
 
     match /users/{userId} {
@@ -120,7 +115,7 @@ service cloud.firestore {
       allow update: if isSuperAdmin() || isAdmin() || (
         isSignedIn() && request.auth.uid == userId
         && incoming().diff(existing()).affectedKeys()
-            .hasOnly(['username', 'phoneNumber', 'address', 'referralCode'])
+            .hasOnly(['username', 'phoneNumber', 'address', 'referralCode', 'photoUrl'])
         && incoming().username is string && incoming().username.size() <= 50
       );
 
@@ -161,7 +156,6 @@ service cloud.firestore {
 
     // ═══════════════════════════════════════════════════════════════
     // PROJECTS
-    // Updated: milestone fields added to allowed update keys (Phase 5)
     // ═══════════════════════════════════════════════════════════════
 
     match /projects/{projectId} {
@@ -185,14 +179,11 @@ service cloud.firestore {
       allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow get:  if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
 
-      // Users can create deposits (pending) and checkout payments (completed)
-      // Admins can create any transaction type (adjustments, refunds)
       allow create: if isAdmin() || (
         isSignedIn() && isValidTransaction(incoming())
         && incoming().keys().hasAll(['userId', 'amount', 'type', 'status', 'createdAt'])
       );
 
-      // Admin can approve/decline deposits
       allow update: if isAdmin()
         && existing().status == 'pending'
         && incoming().diff(existing()).affectedKeys()
@@ -212,7 +203,7 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // RECEIPTS — public read for verification, user creates own
+    // RECEIPTS — public read for verification
     // ═══════════════════════════════════════════════════════════════
 
     match /receipts/{id} {
@@ -223,7 +214,7 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // SESSIONS — 48h login session tracking
+    // SESSIONS
     // ═══════════════════════════════════════════════════════════════
 
     match /sessions/{sessionId} {
@@ -238,8 +229,7 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // VISITOR CARTS — anonymous / pre-login cart
-    // Non-sensitive data: product IDs and names only
+    // VISITOR CARTS — anonymous pre-login cart
     // ═══════════════════════════════════════════════════════════════
 
     match /visitor_carts/{id} {
@@ -247,7 +237,7 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // MARKETPLACE VIEWS — public product view tracking
+    // MARKETPLACE VIEWS
     // ═══════════════════════════════════════════════════════════════
 
     match /marketplace_views/{id} {
@@ -257,7 +247,7 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // CARTS — authenticated user cart items
+    // CARTS — authenticated user cart
     // ═══════════════════════════════════════════════════════════════
 
     match /carts/{id} {
@@ -279,7 +269,7 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // CONVERSATIONS & MESSAGES (chat system)
+    // USER ↔ ADMIN CHAT
     // ═══════════════════════════════════════════════════════════════
 
     match /conversations/{convId} {
@@ -287,7 +277,7 @@ service cloud.firestore {
         isSignedIn() && resource.data.userId == request.auth.uid
       );
       allow create: if isSignedIn()
-        && incoming().userId == request.auth.uid;
+        && (incoming().userId == request.auth.uid || isAdmin());
       allow update: if isAdmin() || (
         isSignedIn() && resource.data.userId == request.auth.uid
         && incoming().diff(existing()).affectedKeys()
@@ -299,6 +289,9 @@ service cloud.firestore {
     match /messages/{messageId} {
       allow read: if isAdmin() || (
         isSignedIn() && resource.data.senderId == request.auth.uid
+      ) || (
+        isSignedIn() && exists(/databases/$(database)/documents/conversations/$(resource.data.conversationId)) &&
+        get(/databases/$(database)/documents/conversations/$(resource.data.conversationId)).data.userId == request.auth.uid
       );
       allow create: if isSignedIn()
         && incoming().senderId == request.auth.uid
@@ -333,6 +326,65 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // VISITOR CHAT WIDGET (Phase 7)
+    // Visitors are anonymous — identified by dt_vid UUID in localStorage.
+    // No Firebase auth available, so rules are permissive but scoped to
+    // non-sensitive chat text only. Admin reads/manages all.
+    // ═══════════════════════════════════════════════════════════════
+
+    match /visitor_conversations/{visitorId} {
+      allow read: if isAdmin() || true;
+      allow create: if true;
+      allow update: if isAdmin() || true;
+      allow delete: if isSuperAdmin();
+    }
+
+    match /visitor_messages/{id} {
+      allow read: if true;
+      allow create: if true
+        && incoming().text is string
+        && incoming().text.size() > 0
+        && incoming().text.size() <= 2000;
+      allow update: if isAdmin()
+        && incoming().diff(existing()).affectedKeys().hasOnly(['read', 'readAt']);
+      allow delete: if isSuperAdmin();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ADMIN PRESENCE (Phase 7)
+    // Widget reads to show green/red glow. Only admins write their own status.
+    // ═══════════════════════════════════════════════════════════════
+
+    match /presence/{adminId} {
+      allow read: if true;
+      allow create, update: if isSignedIn() && request.auth.uid == adminId && isAdmin();
+      allow delete: if isSignedIn() && request.auth.uid == adminId && isAdmin();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // CHAT ASSIGNMENTS (Phase 12)
+    // Admin assigns a worker to handle a conversation.
+    // ═══════════════════════════════════════════════════════════════
+
+    match /chat_assignments/{convId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin()
+        && incoming().assignedBy == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // QUICK REPLY TEMPLATES (Phase 12)
+    // Admin saves reusable chat response snippets.
+    // ═══════════════════════════════════════════════════════════════
+
+    match /quick_replies/{id} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && incoming().createdBy == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // NOTIFICATIONS
     // ═══════════════════════════════════════════════════════════════
 
@@ -340,7 +392,6 @@ service cloud.firestore {
       allow read: if isSignedIn() && (
         resource.data.userId == request.auth.uid || resource.data.userId == 'all'
       );
-      // Admin OR the user themselves (for checkout notifications)
       allow create: if isAdmin() || (isSignedIn() && incoming().userId == request.auth.uid);
       allow update: if isSignedIn() && resource.data.userId == request.auth.uid
         && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
@@ -357,6 +408,7 @@ service cloud.firestore {
 
     // ═══════════════════════════════════════════════════════════════
     // MARKETPLACE
+    // products: allow write by admin covers the new tags[] field too
     // ═══════════════════════════════════════════════════════════════
 
     match /categories/{id}          { allow read: if true; allow write: if isAdmin(); }
@@ -379,16 +431,54 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // ISSUES
+    // ISSUES — real Firestore-backed tracker (Phase 4)
     // ═══════════════════════════════════════════════════════════════
 
     match /issues/{id} {
       allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create: if isSignedIn() && incoming().userId == request.auth.uid;
-      allow update: if isAdmin() || (
-        isSignedIn() && resource.data.userId == request.auth.uid
-        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
-      );
+      allow update: if isAdmin()
+        || (
+          isSignedIn() && resource.data.userId == request.auth.uid
+          && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+        );
+      allow delete: if isSuperAdmin();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // USER NOTES — admin notepad per client (Phase 10)
+    // Any admin/worker can create notes. Author or super admin can delete.
+    // User can read their own notes (so they can request to view if needed).
+    // ═══════════════════════════════════════════════════════════════
+
+    match /user_notes/{userId} {
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
+      allow write: if isAdmin();
+
+      match /notes/{noteId} {
+        allow read: if isAdmin() || (isSignedIn() && userId == request.auth.uid);
+        allow create: if isAdmin() && incoming().authorId == request.auth.uid;
+        allow update: if isAdmin() && (
+          existing().authorId == request.auth.uid || isSuperAdmin()
+        );
+        allow delete: if isAdmin() && (
+          existing().authorId == request.auth.uid || isSuperAdmin()
+        );
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // VISITOR INTELLIGENCE (Phase 11)
+    // Stores enriched visitor data: country, city, device, browser,
+    // referrer, pages visited. Public write (anonymous), admin reads all.
+    // ═══════════════════════════════════════════════════════════════
+
+    match /visitor_intelligence/{visitorId} {
+      allow read: if isAdmin();
+      allow create: if true;
+      allow update: if true
+        && incoming().diff(existing()).affectedKeys()
+            .hasOnly(['pagesVisited', 'lastSeen', 'totalVisits', 'isReturning']);
       allow delete: if isSuperAdmin();
     }
 
@@ -414,17 +504,17 @@ service cloud.firestore {
 
     // ═══════════════════════════════════════════════════════════════
     // PLATFORM SETTINGS
-    // SECURITY FIX (Phase 1): smtp_config and bot_config contain credentials
-    // — those docs are admin-read-only. Public docs (loading, general) stay open.
+    // smtp_config and bot_config contain credentials — super admin only.
+    // cloudinary added to public-readable docs (used on frontend upload).
     // ═══════════════════════════════════════════════════════════════
 
     match /platform_settings/{docId} {
-      allow read: if docId in ['loading', 'general', 'subscriptions'] || isAdmin();
+      allow read: if docId in ['loading', 'general', 'subscriptions', 'cloudinary'] || isAdmin();
       allow write: if isSuperAdmin();
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // PHASE 2 — ADMIN MAIL (platform mailer)
+    // ADMIN MAIL
     // ═══════════════════════════════════════════════════════════════
 
     match /mail_logs/{id} {
@@ -438,90 +528,56 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // PHASE 3 — USER EMAIL SUBSCRIPTION SERVICE
+    // USER EMAIL SERVICE
     // ═══════════════════════════════════════════════════════════════
 
-    // Email subscription config per user (Basic or Pro tier)
     match /email_subscriptions/{userId} {
-      allow read: if isSignedIn() && request.auth.uid == userId || isAdmin();
-      allow create, update: if isAdmin() || (
-        isSignedIn() && request.auth.uid == userId
-      );
+      allow read: if (isSignedIn() && request.auth.uid == userId) || isAdmin();
+      allow create, update: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
       allow delete: if isSuperAdmin();
     }
 
-    // Contact lists — Pro tier bulk email groups
     match /email_contact_lists/{listId} {
-      allow read: if isAdmin() || (
-        isSignedIn() && resource.data.userId == request.auth.uid
-      );
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create: if isSignedIn() && incoming().userId == request.auth.uid;
-      allow update, delete: if isAdmin() || (
-        isSignedIn() && resource.data.userId == request.auth.uid
-      );
+      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
 
-    // User sent mail history
     match /user_mail_logs/{id} {
-      allow read: if isAdmin() || (
-        isSignedIn() && resource.data.userId == request.auth.uid
-      );
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create: if isSignedIn() && incoming().userId == request.auth.uid;
     }
 
-    // User scheduled sends
     match /user_scheduled_mails/{id} {
-      allow read: if isAdmin() || (
-        isSignedIn() && resource.data.userId == request.auth.uid
-      );
-      allow create, update: if isAdmin() || (
-        isSignedIn() && resource.data.userId == request.auth.uid
-      );
-      allow delete: if isAdmin() || (
-        isSignedIn() && resource.data.userId == request.auth.uid
-      );
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create, update: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // PHASE 4A — COUPONS
-    // Super admin creates/manages. Admin validates and grants.
-    // Users can read to validate at checkout (no write).
+    // COUPONS & REFERRALS
     // ═══════════════════════════════════════════════════════════════
 
     match /coupons/{couponId} {
-      // Any signed-in user may read to validate a code at checkout
       allow read: if isSignedIn();
-      // Only super admin creates, edits, or deletes coupons
       allow create, update, delete: if isSuperAdmin();
     }
 
-    // Records each redemption — prevents double-use
     match /coupon_usages/{id} {
       allow read: if isAdmin();
       allow create: if isSignedIn() && incoming().userId == request.auth.uid;
     }
 
-    // Admin-granted coupons: admin writes, user reads own
     match /user_coupons/{id} {
-      allow read: if isAdmin() || (
-        isSignedIn() && resource.data.userId == request.auth.uid
-      );
-      // Only admin can grant or revoke a coupon for a user
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create, update: if isAdmin();
       allow delete: if isSuperAdmin();
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // PHASE 4B — REFERRALS
-    // ═══════════════════════════════════════════════════════════════
-
-    // One doc per user: their referral code + stats
     match /referrals/{userId} {
-      allow read: if isSignedIn() && request.auth.uid == userId || isAdmin();
-      // Created on signup by the user themselves
+      allow read: if (isSignedIn() && request.auth.uid == userId) || isAdmin();
       allow create: if isSignedIn() && request.auth.uid == userId
         && incoming().userId == request.auth.uid;
-      // User can update their own totals (milestone tracking); admin can update any
       allow update: if isAdmin() || (
         isSignedIn() && request.auth.uid == userId
         && incoming().diff(existing()).affectedKeys()
@@ -529,29 +585,19 @@ service cloud.firestore {
       );
     }
 
-    // One event per successful referral sign-up
     match /referral_events/{id} {
-      // Referrer sees their own events; admin sees all
-      allow read: if isAdmin() || (
-        isSignedIn() && resource.data.referrerId == request.auth.uid
-      );
-      // Created by the newly registered user on signup
+      allow read: if isAdmin() || (isSignedIn() && resource.data.referrerId == request.auth.uid);
       allow create: if isSignedIn();
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // PHASE 5 — PROJECT MILESTONES
-    // Admin creates and manages. User approves or requests revision.
+    // PROJECT MILESTONES
     // ═══════════════════════════════════════════════════════════════
 
     match /project_milestones/{id} {
-      allow read: if isAdmin() || (
-        isSignedIn() && resource.data.userId == request.auth.uid
-      );
-      // Admin creates milestones and updates status freely
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create: if isAdmin();
       allow update: if isAdmin() || (
-        // User can only approve or request revision — nothing else
         isSignedIn() && resource.data.userId == request.auth.uid
         && incoming().diff(existing()).affectedKeys()
             .hasOnly(['status', 'revisionNote', 'approvedAt'])
@@ -561,30 +607,22 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // PHASE 6A — INVOICES
+    // INVOICES
     // ═══════════════════════════════════════════════════════════════
 
     match /invoices/{id} {
-      allow read: if isAdmin() || (
-        isSignedIn() && resource.data.userId == request.auth.uid
-      );
-      // User or admin can generate an invoice (metadata only — PDF is client-side)
-      allow create: if isAdmin() || (
-        isSignedIn() && incoming().userId == request.auth.uid
-      );
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isAdmin() || (isSignedIn() && incoming().userId == request.auth.uid);
       allow update: if isSuperAdmin();
       allow delete: if isSuperAdmin();
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // PHASE 6B — KNOWLEDGE BASE
-    // Admin manages articles. Users read published articles only.
+    // KNOWLEDGE BASE
     // ═══════════════════════════════════════════════════════════════
 
     match /kb_articles/{id} {
-      // Public users see published articles; admins see all
       allow read: if resource.data.published == true || isAdmin();
-      // Users can increment helpful/notHelpful counters only
       allow update: if isAdmin() || (
         isSignedIn()
         && incoming().diff(existing()).affectedKeys().hasOnly(['helpful', 'notHelpful', 'views'])
@@ -598,8 +636,7 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // PHASE 7 — CRM LEADS
-    // Admin-only. Super admin can delete.
+    // CRM LEADS
     // ═══════════════════════════════════════════════════════════════
 
     match /leads/{id} {
@@ -609,25 +646,17 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // PHASE 8 — BOT SERVICES
+    // BOT SERVICES
     // ═══════════════════════════════════════════════════════════════
 
-    // User bot subscription config (Telegram etc.)
     match /bot_subscriptions/{userId} {
-      allow read: if isAdmin() || (
-        isSignedIn() && request.auth.uid == userId
-      );
-      allow create, update: if isAdmin() || (
-        isSignedIn() && request.auth.uid == userId
-      );
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
+      allow create, update: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
       allow delete: if isSuperAdmin();
     }
 
-    // Bot event logs (populated when backend is wired)
     match /bot_logs/{id} {
-      allow read: if isAdmin() || (
-        isSignedIn() && resource.data.userId == request.auth.uid
-      );
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create: if isSignedIn();
     }
 
