@@ -3,58 +3,123 @@
 ## Overview
 A fully-wired, ready-to-deploy SaaS starter that can be dropped into any new Replit project.
 An agent reading this folder can install all dependencies and have a running multi-role platform in minutes.
+Deployable to **Netlify** with zero extra configuration.
 
 ---
 
 ## Tech Stack
-| Layer | Choice | Why |
+| Layer | Choice |
+|---|---|
+| Framework | **Next.js 15** (App Router) |
+| Language | **TypeScript** |
+| Styling | **Tailwind CSS 4** |
+| Auth + DB | **Firebase** (Auth + Firestore) |
+| File Storage | **Cloudinary** |
+| Animation | **Framer Motion** |
+| Icons | **Lucide React** |
+| Email | **EmailJS** (client) + configurable SMTP |
+| Hosting | **Netlify** (`@netlify/plugin-nextjs` + `netlify/functions/`) |
+
+---
+
+## Features Included
+
+### Auth
+- User login + signup (with optional referral code)
+- Staff/Vault login (separate page for admin accounts)
+- Forgot password / reset via Firebase email
+- Session management (track + revoke active sessions)
+
+### Roles
+| Role | Collection | Access |
 |---|---|---|
-| Framework | **Next.js 15** (App Router) | SSR, API routes built-in, better SEO, widely deployable |
-| Language | **TypeScript** | Full type safety |
-| Styling | **Tailwind CSS 4** | Same as current project |
-| Auth + DB | **Firebase** (Auth + Firestore) | Same as current project, no migration needed |
-| File Storage | **Cloudinary** | Same signed-upload pattern |
-| Animation | **Framer Motion** | Consistent UI feel |
-| Icons | **Lucide React** | Same icon set |
-| Email | **EmailJS** (client) + configurable SMTP (server) | Super admin can switch provider |
-| Chat | **Firestore real-time** | Same real-time pattern as current project |
+| `user` | `users/{uid}` | Dashboard, support chat, profile, notifications |
+| `admin` | `admins/{uid}` | User management, chat management, broadcast |
+| `super_admin` | `admins/{uid}` | Everything + full platform configuration |
+
+### User Pages
+- Dashboard
+- Support chat (open ticket → real-time messaging)
+- Profile (edit avatar, name, phone)
+- Notifications (real-time bell + notification list)
+
+### Admin Pages
+- Dashboard (stats)
+- User management (list, view detail, ban/suspend)
+- Chat management (all support threads)
+- Broadcast (email all users or a group)
+
+### Super Admin Pages
+- Platform branding (name, colors, logo, favicon, tagline)
+- SEO settings (meta title, description, OG image)
+- Email settings (EmailJS or SMTP config, DNS guidance)
+- Registration toggle (open/close signups)
+- Maintenance mode (toggle + custom message)
+- Admin staff management (invite, promote, remove)
+- Audit logs (filter by user, action, date)
+
+### Core Systems
+- **Dynamic branding** — platform settings loaded from Firestore, injected as CSS variables at root layout
+- **Real-time chat** — Firestore-powered support chat with file uploads, message editing, delete
+- **In-app notifications** — bell icon, real-time Firestore listener, mark read/unread
+- **Toast system** — global feedback for all actions (success, error, warning, info)
+- **Audit logging** — every admin action is logged with timestamp + actor
+- **Signed Cloudinary uploads** — via Netlify Function (keeps API secret server-side)
+- **Mobile responsive** — all sidebars collapse to hamburger on small screens
+- **Dark/light mode** — Tailwind `dark:` classes, toggle stored in localStorage
+- **Custom 404 page** — branded not-found page
+- **Terms + Privacy stubs** — blank legal pages with routing set up
 
 ---
 
 ## Folder Structure
 ```
 easy-setup/
-├── app/                              # Next.js App Router
-│   ├── (public)/
-│   │   └── page.tsx                  # Landing page
+├── app/
 │   ├── (auth)/
-│   │   ├── login/page.tsx            # User login
-│   │   ├── signup/page.tsx           # User registration
-│   │   └── staff/page.tsx            # Admin/Staff vault login
+│   │   ├── login/page.tsx
+│   │   ├── signup/page.tsx
+│   │   ├── staff/page.tsx            # Vault / staff login
+│   │   └── forgot-password/page.tsx
 │   ├── (user)/
-│   │   ├── layout.tsx                # User shell + sidebar
+│   │   ├── layout.tsx
 │   │   ├── dashboard/page.tsx
-│   │   ├── support/page.tsx          # Support chat
-│   │   └── profile/page.tsx
+│   │   ├── support/page.tsx
+│   │   ├── profile/page.tsx
+│   │   └── notifications/page.tsx
 │   ├── (admin)/
-│   │   ├── layout.tsx                # Admin shell + sidebar
+│   │   ├── layout.tsx
 │   │   ├── dashboard/page.tsx
 │   │   ├── users/page.tsx
-│   │   ├── chats/page.tsx            # Live support chat management
-│   │   └── broadcast/page.tsx        # Email broadcast
+│   │   ├── users/[id]/page.tsx
+│   │   ├── chats/page.tsx
+│   │   └── broadcast/page.tsx
 │   ├── (superadmin)/
-│   │   ├── layout.tsx                # Super admin shell
+│   │   ├── layout.tsx
 │   │   ├── dashboard/page.tsx
-│   │   ├── platform/page.tsx         # Branding settings
-│   │   ├── email/page.tsx            # Email provider settings
-│   │   ├── admins/page.tsx           # Admin staff management
-│   │   └── audit/page.tsx            # Audit logs
+│   │   ├── platform/page.tsx         # Branding + SEO + toggles
+│   │   ├── email/page.tsx
+│   │   ├── admins/page.tsx
+│   │   └── audit/page.tsx
+│   ├── (public)/
+│   │   ├── terms/page.tsx
+│   │   └── privacy/page.tsx
 │   ├── api/
-│   │   └── sign-cloudinary/route.ts  # Signed upload endpoint (replaces Netlify Function)
-│   ├── layout.tsx                    # Root layout (loads platform settings)
+│   │   └── sign-cloudinary/route.ts  # Next.js API route (Netlify converts this)
+│   ├── layout.tsx                    # Root layout — loads platform CSS vars
+│   ├── page.tsx                      # Landing page
+│   ├── not-found.tsx
 │   └── globals.css
 ├── components/
-│   ├── ui/                           # Button, Input, Badge, Modal, etc.
+│   ├── ui/
+│   │   ├── Button.tsx
+│   │   ├── Input.tsx
+│   │   ├── Modal.tsx
+│   │   ├── Badge.tsx
+│   │   ├── Toast.tsx                 # + ToastContext
+│   │   ├── Logo.tsx
+│   │   ├── ThemeToggle.tsx
+│   │   └── NotificationBell.tsx
 │   ├── navigation/
 │   │   ├── UserSidebar.tsx
 │   │   ├── AdminSidebar.tsx
@@ -63,128 +128,66 @@ easy-setup/
 │   │   ├── ChatWindow.tsx
 │   │   ├── ChatList.tsx
 │   │   ├── MessageBubble.tsx
-│   │   └── ChatInput.tsx             # With file upload
+│   │   └── ChatInput.tsx
 │   └── guards/
 │       ├── UserGuard.tsx
 │       ├── AdminGuard.tsx
 │       └── SuperAdminGuard.tsx
 ├── lib/
-│   ├── firebase.ts                   # Firebase init
-│   ├── auth.ts                       # Register, login, logout, role detection
-│   ├── chatService.ts                # Firestore real-time chat
-│   ├── cloudinary.ts                 # Signed upload via /api/sign-cloudinary
-│   ├── emailService.ts               # Configurable email sending
-│   ├── platformSettings.ts           # Load/save from Firestore
-│   ├── auditService.ts               # Audit log writes
-│   └── sessionService.ts             # Session validation
+│   ├── firebase.ts
+│   ├── authService.ts
+│   ├── platformSettings.ts
+│   ├── chatService.ts
+│   ├── cloudinaryService.ts
+│   ├── emailService.ts
+│   ├── auditService.ts
+│   ├── sessionService.ts
+│   └── notificationService.ts
 ├── contexts/
-│   └── AuthContext.tsx               # Global auth + role state
+│   ├── AuthContext.tsx
+│   └── ToastContext.tsx
 ├── types/
-│   └── index.ts                      # Shared TypeScript types
-├── firestore.rules                   # Security rules for all collections
-├── .env.example                      # All required env vars documented
+│   └── index.ts
+├── netlify/
+│   └── functions/
+│       └── sign-cloudinary.ts        # Netlify Function (fallback/alternative)
+├── netlify.toml                      # Netlify deploy config + Next.js plugin
+├── firestore.rules
+├── .env.example
 ├── package.json
 ├── next.config.ts
-├── tailwind.config.ts
+├── postcss.config.ts                 # Tailwind 4 for Next.js
 ├── tsconfig.json
 └── README.md                         # Agent-readable setup instructions
 ```
 
 ---
 
-## Pages Detail
-
-### Landing Page `/`
-- Platform name + logo (loaded dynamically from Firestore)
-- Hero section with tagline + CTA buttons (Login / Sign Up)
-- Features section (3–4 cards)
-- Footer
-- Fully customizable from Super Admin → Platform Settings
-
-### Auth Pages
-**`/login`**
-- Email + password
-- Link to signup
-- Link to staff login
-
-**`/signup`**
-- Username, phone, email, password, confirm password
-- Optional referral code field
-- Redirects to user dashboard on success
-
-**`/staff`** (Vault Login)
-- Email + password for admin/super admin accounts
-- Same vault logic: separate from user login
-
----
-
-## Role System
-
-| Role | Collection | Access |
-|---|---|---|
-| `user` | `users/{uid}` | User dashboard, support chat, profile |
-| `admin` | `admins/{uid}` | Admin panel, user management, chat |
-| `super_admin` | `admins/{uid}` | Everything + platform settings |
-
-Role is detected in `AuthContext` by checking both `users` and `admins` Firestore collections on login.
-
----
-
-## Core Systems
-
-### 1. Platform Settings (Super Admin → Platform)
-Stored in `Firestore: platform_settings/branding`
-- Platform name
-- Primary color (hex)
-- Secondary color (hex)
-- Logo URL (Cloudinary)
-- Favicon URL (Cloudinary)
-- Platform tagline
-
-Applied dynamically in root `layout.tsx` via CSS variables injected into `<head>`.
-
-### 2. Chat System
-- Same Firestore real-time pattern as current project
-- Users open a support ticket → creates a chat thread
-- Admins see all open chats, can reply
-- Messages support text + file attachments (Cloudinary)
-- Deleted messages hidden from user view
-- Edit message inline
-
-### 3. Email System (Super Admin → Email Settings)
-Stored in `Firestore: platform_settings/email`
-- Provider choice: EmailJS / SMTP
-- EmailJS: service ID, template ID, public key
-- SMTP: host, port, user, pass (stored encrypted in Firestore)
-- DNS info section (for custom domain email setup guidance)
-- Test send button
-
-### 4. File Uploads (Cloudinary)
-- Signed upload via Next.js API route `/api/sign-cloudinary`
-- Config stored in `Firestore: platform_settings/cloudinary` with env fallback
-- Client-side upload with progress
-
-### 5. Audit Logs
-- Every admin/super admin action writes to `Firestore: audit_logs`
-- Super admin can filter by user, action type, date range
+## Netlify Deployment
+`netlify.toml` includes:
+- `@netlify/plugin-nextjs` for full Next.js support
+- `netlify/functions/sign-cloudinary.ts` as the Cloudinary signing endpoint
+- Redirect rules for SPA fallback
+- `NODE_VERSION = "20"` pinned
 
 ---
 
 ## Firestore Collections
 ```
-users/              — user profiles
-admins/             — admin + super admin profiles
-sessions/           — active login sessions
-chats/              — support chat threads
-messages/           — chat messages (subcollection under chats)
-platform_settings/  — branding, email, cloudinary config
-audit_logs/         — admin action history
-referrals/          — referral tracking
+users/                — user profiles (role: 'user')
+admins/               — admin + super admin profiles
+sessions/             — active login sessions
+chats/                — support chat threads
+messages/             — subcollection: chats/{id}/messages
+notifications/        — user_notifications/{uid}/items
+platform_settings/    — branding, email, cloudinary, seo, toggles
+audit_logs/           — admin action history
+referrals/            — referral tracking
 ```
 
 ---
 
-## Environment Variables (`.env.example`)
+## Environment Variables (.env.example)
 ```env
 # Firebase
 NEXT_PUBLIC_FIREBASE_API_KEY=
@@ -203,47 +206,21 @@ CLOUDINARY_API_SECRET=
 
 ---
 
-## README.md (Agent Instructions)
-The README will include:
-- How to install: `npm install`
-- How to set up Firebase (create project, enable Auth, copy config)
-- How to set up Cloudinary (create account, get keys)
-- How to set the first super admin (Firestore manual doc)
-- How to run: `npm run dev`
-- Deployment: Vercel one-click (Next.js native)
-
----
-
-## What Is NOT Included (intentionally lean)
-- Payment/wallet system (project-specific)
-- Marketplace (project-specific)
-- Any AI features (project-specific)
-- Complex project management (project-specific)
-
-The template covers **auth, roles, chat, email, branding, file uploads** — the foundation every SaaS app needs. Everything else gets built on top.
-
----
-
-## Delivery
-Final output: `easy-setup.zip` downloadable from Super Admin → Platform Settings → "Download Starter Template"
-(Or simply available as a zip in the project files)
-
----
-
-## Build Order
-1. `package.json` + `next.config.ts` + `tailwind.config.ts` + `tsconfig.json`
-2. `.env.example` + `firestore.rules`
-3. Firebase init + AuthContext
-4. UI components (Button, Input, Badge, Modal)
-5. Platform settings service + root layout (CSS variables)
-6. Auth pages (login, signup, staff)
-7. Guards + navigation (sidebars)
-8. User pages (dashboard, support chat, profile)
-9. Admin pages (dashboard, users, chats, broadcast)
-10. Super admin pages (platform, email, admins, audit)
-11. Chat system (full)
-12. Email system
-13. Cloudinary upload
-14. Landing page
-15. README.md
-16. Zip into `easy-setup.zip`
+## Build Order (execution sequence)
+1. Config files (package.json, next.config.ts, postcss, tsconfig, netlify.toml, .env.example)
+2. Types
+3. Firebase init + all service libs
+4. Contexts (AuthContext, ToastContext)
+5. UI components
+6. Guards + Navigation sidebars
+7. Chat components
+8. Root layout + globals.css + landing page + 404
+9. Auth pages (login, signup, staff, forgot-password)
+10. User pages
+11. Admin pages
+12. Super admin pages
+13. API route (sign-cloudinary)
+14. Netlify function (sign-cloudinary)
+15. Firestore rules
+16. README.md
+17. Zip → easy-setup.zip

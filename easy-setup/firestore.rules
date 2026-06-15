@@ -1,0 +1,91 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(uid) { return request.auth.uid == uid; }
+    function incoming() { return request.resource.data; }
+
+    function getRole() {
+      return get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role;
+    }
+    function isAdmin() {
+      return isSignedIn() && (getRole() == 'admin' || getRole() == 'super_admin');
+    }
+    function isSuperAdmin() {
+      return isSignedIn() && getRole() == 'super_admin';
+    }
+
+    // ── Users ──────────────────────────────────────────────────────────────
+    match /users/{uid} {
+      allow read: if isSignedIn() && (isOwner(uid) || isAdmin());
+      allow create: if isSignedIn() && isOwner(uid)
+        && incoming().uid == uid
+        && incoming().role == 'user'
+        && incoming().status == 'active';
+      allow update: if isSignedIn() && (isOwner(uid) || isAdmin());
+      allow delete: if isSuperAdmin();
+    }
+
+    // ── Admins ─────────────────────────────────────────────────────────────
+    match /admins/{uid} {
+      allow read: if isSignedIn() && (isOwner(uid) || isAdmin());
+      allow create: if isSignedIn() && isOwner(uid)
+        && incoming().role == 'client'
+        && incoming().status == 'inactive';
+      allow update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ── Sessions ───────────────────────────────────────────────────────────
+    match /sessions/{sessionId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow update: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // ── Chats ──────────────────────────────────────────────────────────────
+    match /chats/{threadId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow update: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+
+      match /messages/{messageId} {
+        allow read: if isAdmin() || (isSignedIn() &&
+          get(/databases/$(database)/documents/chats/$(threadId)).data.userId == request.auth.uid);
+        allow create: if isSignedIn();
+        allow update: if isAdmin() || (isSignedIn() && resource.data.senderId == request.auth.uid);
+        allow delete: if isAdmin();
+      }
+    }
+
+    // ── User Notifications ────────────────────────────────────────────────
+    match /user_notifications/{uid}/items/{notifId} {
+      allow read: if isSignedIn() && (isOwner(uid) || isAdmin());
+      allow create: if isSignedIn() && (isAdmin() || isOwner(uid));
+      allow update: if isSignedIn() && isOwner(uid);
+      allow delete: if isAdmin();
+    }
+
+    // ── Platform Settings ─────────────────────────────────────────────────
+    match /platform_settings/{docId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    // ── Audit Logs ────────────────────────────────────────────────────────
+    match /audit_logs/{logId} {
+      allow read: if isSuperAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // ── Referrals ─────────────────────────────────────────────────────────
+    match /referrals/{uid} {
+      allow read: if isSignedIn() && (isOwner(uid) || isAdmin());
+      allow create: if isSignedIn() && isOwner(uid) && incoming().userId == request.auth.uid;
+      allow update: if isAdmin();
+    }
+  }
+}

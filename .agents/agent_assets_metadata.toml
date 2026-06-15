@@ -12,3 +12,9 @@ id = "or-qt4TjoYvXxwBLAEEGE"
 uri = "file://PLATFORM_FULL_UPGRADE_PLAN.md"
 type = "text"
 title = "Platform Full Upgrade Plan"
+
+[[outputs]]
+id = "TfnFvlOXRFqcdpQdLp_2y"
+uri = "file://easy-setup.zip"
+type = "unspecified"
+title = "easy-setup.zip — SaaS Starter Template"
