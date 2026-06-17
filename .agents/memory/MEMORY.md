@@ -4,3 +4,4 @@
 - [Chat Architecture](chat-architecture.md) — edit handled inside MessageBubble directly; deleted admin messages hidden from user view entirely; file upload uses per-file AbortController + localStorage cache.
 - [Platform Roadmap Architecture](platform-roadmap.md) — full feature set built: public store with visitor cart, 48h sessions, orders+receipts, tabbed UserDetails, admin transactions page, live landing page products.
 - [Firestore Rules Critical Fixes](firestore-rules-fixes.md) — carts collection was missing (only cart_items existed); transactions rule blocked cart checkout (status/amount mismatch); user_notifications blocked user self-create; new collections added with correct rules.
+- [Build Plan Phases](build-plan-phases.md) — all 12 BUILD_PLAN phases now complete; visitor chat uses dt_vid localStorage key; product tags use tags[] array on Firestore doc alongside categoryId; platform_bot settings stored at platform_settings/platform_bot.

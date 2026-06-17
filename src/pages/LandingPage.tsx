@@ -11,6 +11,8 @@ import { Logo } from "../components/ui/Logo";
 import { useTheme } from "../ThemeContext";
 import { usePlatformSetting } from "../lib/platformSettings";
 import { db, collection, onSnapshot } from "../firebase";
+import { SupportWidget } from "../components/widget/SupportWidget";
+import { trackVisitor } from "../lib/visitorIntelligence";
 
 interface Product {
   id: string;
@@ -124,6 +126,10 @@ export default function LandingPage() {
   const [statsActive, setStatsActive] = useState(false);
   const statsRef = useRef<HTMLDivElement>(null);
   const botRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    trackVisitor("landing").catch(() => {});
+  }, []);
 
   useEffect(() => {
     const t = setInterval(() => setTaglineIdx(i => (i + 1) % TAGLINES.length), 3000);
@@ -815,6 +821,7 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+      <SupportWidget source="landing" />
     </div>
   );
 }

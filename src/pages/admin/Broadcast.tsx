@@ -53,8 +53,6 @@ export default function BroadcastSystem() {
 
     try {
       if (targetType === "all") {
-        // Send a single notification with userId: "all"
-        // The Notifications page already supports reading "all" notifications
         await addDoc(collection(db, "user_notifications"), {
           userId: "all",
           title,
@@ -65,7 +63,6 @@ export default function BroadcastSystem() {
         });
         logAudit(user as any, "BROADCAST_SENT", `Global notification: ${title}`, "all", "notification");
       } else {
-        // Targeted notifications
         const batch = writeBatch(db);
         selectedUsers.forEach(u => {
           const newNotifRef = doc(collection(db, "user_notifications"));
@@ -98,9 +95,9 @@ export default function BroadcastSystem() {
     <div className="space-y-10 max-w-4xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-brand-border dark:border-white/5">
         <div>
-          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">Signal_Broadcaster</h1>
+          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">Broadcast</h1>
           <p className="text-brand-accent font-black mt-2 uppercase tracking-[0.2em] text-[10px] italic">
-            Mass Protocol Messaging // Multi-Node Relay
+            Send announcements to users
           </p>
         </div>
       </div>
@@ -110,7 +107,7 @@ export default function BroadcastSystem() {
             <Card className="space-y-8">
                <form onSubmit={handleBroadcast} className="space-y-6">
                   <div className="space-y-4">
-                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Protocol Selection</label>
+                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Broadcast Type</label>
                      <div className="grid grid-cols-2 gap-4">
                         <button 
                           type="button" 
@@ -118,7 +115,7 @@ export default function BroadcastSystem() {
                           className={cn("p-4 rounded-2xl border-2 transition-all flex items-center gap-3", targetType === "all" ? "border-brand-accent bg-brand-accent/5 text-brand-accent" : "border-brand-border dark:border-white/5 text-slate-500")}
                         >
                            <Users className="w-5 h-5" />
-                           <span className="text-xs font-black uppercase italic">Global Relay</span>
+                           <span className="text-xs font-black uppercase italic">All Users</span>
                         </button>
                         <button 
                           type="button" 
@@ -126,14 +123,14 @@ export default function BroadcastSystem() {
                           className={cn("p-4 rounded-2xl border-2 transition-all flex items-center gap-3", targetType === "selective" ? "border-brand-primary bg-brand-primary/5 text-brand-primary" : "border-brand-border dark:border-white/5 text-slate-500")}
                         >
                            <User className="w-5 h-5" />
-                           <span className="text-xs font-black uppercase italic">Targeted Node</span>
+                           <span className="text-xs font-black uppercase italic">Specific User</span>
                         </button>
                      </div>
                   </div>
 
                   <div className="space-y-4">
                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Sender Name</label>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Notification Type</label>
                         <div className="flex gap-4">
                            {["info", "alert", "success"].map(type => (
                              <button 
@@ -155,25 +152,25 @@ export default function BroadcastSystem() {
                      </div>
 
                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Transmission Title</label>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Title</label>
                         <input 
                           type="text" 
                           required 
                           value={title}
                           onChange={(e) => setTitle(e.target.value)}
-                          placeholder="URGENT_PROTOCOL_UPDATE"
-                          className="w-full bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-xl p-4 text-xs font-bold uppercase tracking-widest"
+                          placeholder="Announcement title..."
+                          className="w-full bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-xl p-4 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-brand-accent transition-all dark:text-white"
                         />
                      </div>
 
                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Relay Content</label>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Message</label>
                         <textarea 
                           required 
                           value={message}
                           onChange={(e) => setMessage(e.target.value)}
-                          placeholder="ENTER_TRANSMISSION_DATA..."
-                          className="w-full min-h-[120px] bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-xl p-4 text-xs font-bold uppercase tracking-widest resize-none"
+                          placeholder="Write your announcement..."
+                          className="w-full min-h-[120px] bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-xl p-4 text-xs font-bold uppercase tracking-widest resize-none focus:outline-none focus:border-brand-accent transition-all dark:text-white"
                         />
                      </div>
                   </div>
@@ -183,12 +180,12 @@ export default function BroadcastSystem() {
                       success ? (
                         <motion.div initial={{ y: 20 }} animate={{ y: 0 }} className="flex items-center gap-2">
                            <CheckCircle2 className="w-5 h-5" /> 
-                           <span>SIGNAL_TRANSMITTED</span>
+                           <span>Broadcast Sent</span>
                         </motion.div>
                       ) : (
                         <div className="flex items-center gap-2">
                            <Send className="w-5 h-5" /> 
-                           <span>INITIATE_BROADCAST</span>
+                           <span>Send Broadcast</span>
                         </div>
                       )}
                   </Button>
@@ -201,17 +198,17 @@ export default function BroadcastSystem() {
                {targetType === "selective" && (
                  <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
                     <Card className="space-y-6">
-                       <CardTitle className="text-xs uppercase italic tracking-tighter">Target_Nodes</CardTitle>
+                       <CardTitle className="text-xs uppercase italic tracking-tighter">Select Users</CardTitle>
                        
                        <div className="relative">
                           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                           <input 
                             type="text" 
-                            placeholder="Search Node Email..." 
+                            placeholder="Search by email..." 
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                            className="w-full bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-xl pl-10 pr-4 py-2 text-[10px] font-bold uppercase tracking-widest"
+                            className="w-full bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-xl pl-10 pr-4 py-2 text-[10px] font-bold uppercase tracking-widest focus:outline-none focus:border-brand-accent transition-all dark:text-white"
                           />
                        </div>
 
@@ -239,7 +236,7 @@ export default function BroadcastSystem() {
 
                        {selectedUsers.length > 0 && (
                          <div className="pt-4 border-t border-brand-border dark:border-white/5">
-                            <p className="text-[9px] font-black text-brand-primary uppercase tracking-widest mb-3">Selected Capacity: {selectedUsers.length}</p>
+                            <p className="text-[9px] font-black text-brand-primary uppercase tracking-widest mb-3">Selected: {selectedUsers.length}</p>
                             <div className="flex flex-wrap gap-2">
                                {selectedUsers.map(u => (
                                  <span key={u.uid} className="px-2 py-1 bg-brand-primary/10 rounded-lg text-[9px] font-mono text-brand-primary flex items-center gap-1">
@@ -259,10 +256,10 @@ export default function BroadcastSystem() {
                <div className="relative z-10 space-y-4">
                   <div className="flex items-center gap-3 text-brand-accent">
                      <Bell className="w-5 h-5" />
-                     <CardTitle className="text-white text-xs uppercase italic tracking-tighter">Transmission_Log</CardTitle>
+                     <CardTitle className="text-white text-xs uppercase italic tracking-tighter">Broadcast Log</CardTitle>
                   </div>
                   <p className="text-[10px] text-slate-400 font-medium leading-relaxed uppercase italic">
-                    Signal broadcasts are permanent records in the user logic stream. Targeted nodes receive direct push notifications while global relays affect all active terminals.
+                    Broadcasts are permanent records. Targeted messages go to specific users; global broadcasts reach all users.
                   </p>
                </div>
             </Card>

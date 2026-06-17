@@ -114,7 +114,111 @@ function BotSettingsPanel() {
   );
 }
 
-type Tab = 'general' | 'vault' | 'loading' | 'cloudinary' | 'email' | 'bot' | 'subscriptions';
+function PlatformBotPanel() {
+  const [data, setData] = useState({
+    token: '', chatId: '', enabled: false,
+    events: { newUser: true, newDeposit: true, newOrder: true, newFix: true, newVisitorChat: false },
+  });
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [testResult, setTestResult] = useState<boolean | null>(null);
+  const inp = "w-full bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-brand-accent transition-all dark:text-white";
+  const lbl = "text-[10px] font-black text-slate-500 uppercase tracking-widest";
+
+  useEffect(() => {
+    getDoc(doc(db, 'platform_settings', 'platform_bot')).then(snap => {
+      if (snap.exists()) setData(d => ({ ...d, ...snap.data() }));
+    });
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    try {
+      await setDoc(doc(db, 'platform_settings', 'platform_bot'), { ...data, updatedAt: serverTimestamp() }, { merge: true });
+      setSaved(true); setTimeout(() => setSaved(false), 2500);
+    } catch {}
+    setSaving(false);
+  }
+
+  async function testBot() {
+    if (!data.token || !data.chatId) return;
+    setTesting(true);
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${data.token}/sendMessage`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: data.chatId, text: '✅ Platform notification bot connected successfully!' }),
+      });
+      setTestResult(res.ok);
+    } catch { setTestResult(false); }
+    setTesting(false);
+    setTimeout(() => setTestResult(null), 4000);
+  }
+
+  const EVENT_LABELS: { key: keyof typeof data.events; label: string; desc: string }[] = [
+    { key: 'newUser', label: 'New User Signup', desc: 'Notify when a new client registers' },
+    { key: 'newDeposit', label: 'New Deposit', desc: 'Notify on wallet top-up' },
+    { key: 'newOrder', label: 'New Order', desc: 'Notify on store purchase' },
+    { key: 'newFix', label: 'New Fix/Issue', desc: 'Notify when a client submits an issue' },
+    { key: 'newVisitorChat', label: 'Visitor Chat Started', desc: 'Notify when a site visitor opens the chat widget' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-brand-border dark:border-white/5">
+        <div>
+          <p className="text-sm font-black text-brand-text-bold dark:text-white uppercase tracking-tight">Platform Notifications</p>
+          <p className="text-[10px] text-slate-400 mt-0.5">Receive Telegram alerts for platform events</p>
+        </div>
+        <input type="checkbox" checked={data.enabled} onChange={e => setData(d => ({ ...d, enabled: e.target.checked }))} className="w-5 h-5 accent-brand-accent cursor-pointer" />
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <label className={lbl}>Bot Token</label>
+          <input type="password" value={data.token} onChange={e => setData(d => ({ ...d, token: e.target.value }))} className={inp} placeholder="1234567890:AAXXXXXX..." />
+          <p className="text-[10px] text-slate-400">Get from @BotFather on Telegram</p>
+        </div>
+        <div className="space-y-2">
+          <label className={lbl}>Chat ID</label>
+          <input value={data.chatId} onChange={e => setData(d => ({ ...d, chatId: e.target.value }))} className={inp} placeholder="-1001234567890" />
+          <p className="text-[10px] text-slate-400">Group/channel ID (use @username for public channels)</p>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <p className={lbl}>Trigger Events</p>
+        {EVENT_LABELS.map(ev => (
+          <div key={ev.key} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-brand-border dark:border-white/5">
+            <div>
+              <p className="text-xs font-black text-brand-text-bold dark:text-white">{ev.label}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">{ev.desc}</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={data.events[ev.key]}
+              onChange={e => setData(d => ({ ...d, events: { ...d.events, [ev.key]: e.target.checked } }))}
+              className="w-4 h-4 accent-brand-accent cursor-pointer"
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <Button onClick={save} disabled={saving} className={`gap-2 ${saved ? 'bg-brand-success' : 'bg-brand-accent'} text-white`}>
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          {saved ? 'Saved!' : 'Save Bot Settings'}
+        </Button>
+        <Button onClick={testBot} disabled={testing || !data.token || !data.chatId} className="gap-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-white hover:bg-slate-200 dark:hover:bg-slate-700">
+          {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : testResult === true ? <CheckCircle2 className="w-4 h-4 text-brand-success" /> : testResult === false ? <XCircle className="w-4 h-4 text-red-500" /> : <Bot className="w-4 h-4" />}
+          {testing ? 'Testing...' : testResult === true ? 'Connected!' : testResult === false ? 'Failed' : 'Test Bot'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+type Tab = 'general' | 'vault' | 'loading' | 'cloudinary' | 'email' | 'bot' | 'subscriptions' | 'platformBot';
 
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
@@ -395,6 +499,12 @@ export default function PlatformSettings() {
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'subscriptions' ? 'bg-brand-accent text-white shadow-lg shadow-brand-accent/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-brand-text-bold dark:hover:text-white'}`}
         >
           <DollarSign className="w-3.5 h-3.5" /> Subscriptions
+        </button>
+        <button
+          onClick={() => setActiveTab('platformBot')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'platformBot' ? 'bg-brand-accent text-white shadow-lg shadow-brand-accent/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-brand-text-bold dark:hover:text-white'}`}
+        >
+          <Bot className="w-3.5 h-3.5" /> Platform Bot
         </button>
       </div>
 
@@ -802,6 +912,20 @@ export default function PlatformSettings() {
                   Test Connection
                 </Button>
               </div>
+            </Card>
+          </motion.div>
+        )}
+        {/* PLATFORM BOT */}
+        {activeTab === 'platformBot' && (
+          <motion.div key="platformBot" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+            <Card className="space-y-6">
+              <CardTitle className="uppercase italic tracking-tighter flex items-center gap-2">
+                <Bot className="w-4 h-4 text-brand-accent" /> Platform Notification Bot
+              </CardTitle>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Configure a Telegram bot that receives platform-wide notifications (new signups, deposits, orders, issues). This is separate from user bot subscriptions.
+              </p>
+              <PlatformBotPanel />
             </Card>
           </motion.div>
         )}

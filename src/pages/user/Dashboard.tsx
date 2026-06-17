@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  Layers, MessageSquare, Bell, ArrowUpRight, TrendingUp,
+  Layers, MessageSquare, Bell, ArrowUpRight,
   Activity, ShieldCheck, Globe, Loader2, Clock, Wrench,
-  AlertCircle, Wallet
+  AlertCircle, Wallet, CheckCircle2
 } from "lucide-react";
 import { Card, CardTitle } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -37,6 +37,7 @@ export default function UserDashboard() {
   const [showFixModal, setShowFixModal] = useState<{ projectId: string; projectName: string } | null>(null);
   const [fixDescription, setFixDescription] = useState("");
   const [submittingFix, setSubmittingFix] = useState(false);
+  const [fixSuccess, setFixSuccess] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -84,9 +85,12 @@ export default function UserDashboard() {
         status: "placed",
         createdAt: serverTimestamp(),
       });
-      alert("Fix request placed successfully.");
-      setShowFixModal(null);
+      setFixSuccess(true);
       setFixDescription("");
+      setTimeout(() => {
+        setFixSuccess(false);
+        setShowFixModal(null);
+      }, 1500);
     } catch (err) {
       console.error(err);
     } finally {
@@ -106,16 +110,16 @@ export default function UserDashboard() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-brand-border dark:border-white/5">
         <div>
           <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic leading-none">
-            Welcome, <span className="text-brand-accent">{profile?.username || "Authorized Human"}</span>
+            Welcome, <span className="text-brand-accent">{profile?.username || "User"}</span>
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 font-bold mt-2 uppercase tracking-[0.2em] text-[10px] italic">
-            Durex Engine Platform // v1.2 Operational // Status Locked
+          <p className="text-slate-500 dark:text-slate-400 font-bold mt-2 uppercase tracking-[0.2em] text-[10px]">
+            Your dashboard overview
           </p>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right">
-            <p className="text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest leading-none mb-1">Time Sync</p>
-            <p className="text-xs font-mono text-brand-text-bold dark:text-white uppercase italic">{new Date().toLocaleDateString()} // {new Date().toLocaleTimeString()}</p>
+            <p className="text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest leading-none mb-1">Current Time</p>
+            <p className="text-xs font-mono text-brand-text-bold dark:text-white uppercase italic">{new Date().toLocaleDateString()} · {new Date().toLocaleTimeString()}</p>
           </div>
           <Button size="sm" className="hidden lg:flex" onClick={() => window.location.href = '/store'}>Browse Store</Button>
         </div>
@@ -134,10 +138,6 @@ export default function UserDashboard() {
                   <stat.icon className="w-5 h-5" />
                 </div>
               </div>
-              <div className="mt-4 flex items-center gap-2 text-[9px] font-black text-brand-success uppercase tracking-widest">
-                <TrendingUp className="w-3 h-3" />
-                <span>Operational Efficiency +12%</span>
-              </div>
               <span className="absolute -bottom-4 -right-2 text-7xl font-black text-slate-100 dark:text-white opacity-[0.03] italic pointer-events-none select-none">0{i + 1}</span>
             </Card>
           </motion.div>
@@ -147,22 +147,24 @@ export default function UserDashboard() {
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between">
-            <CardTitle className="uppercase italic tracking-tighter">Project Evolution</CardTitle>
-            <span className="text-[10px] font-black uppercase text-slate-400">Total: {projects.length} Nodes</span>
+            <CardTitle className="uppercase italic tracking-tighter">My Projects</CardTitle>
+            <span className="text-[10px] font-black uppercase text-slate-400">
+              Total: {projects.length} project{projects.length !== 1 ? "s" : ""}
+            </span>
           </div>
 
           <div className="grid gap-4">
             {loading ? (
               <div className="h-64 flex flex-col items-center justify-center space-y-4 bg-slate-50/50 dark:bg-slate-950/20 rounded-2xl border border-dashed border-slate-200 dark:border-white/5">
                 <Loader2 className="w-8 h-8 animate-spin text-brand-accent" />
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Accessing Cloud Files...</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Loading projects...</p>
               </div>
             ) : projects.length === 0 ? (
               <div className="h-64 bg-slate-50 dark:bg-slate-900/50 rounded-2xl flex flex-col items-center justify-center border border-dashed border-slate-200 dark:border-white/5 space-y-4">
                 <Activity className="text-slate-300 w-12 h-12 animate-pulse" />
                 <div className="text-center">
-                  <p className="text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest">Awaiting Engine Data</p>
-                  <p className="text-xs text-slate-300 dark:text-slate-700 font-medium max-w-xs mt-1">Visit the Chat Team to initialize your first enterprise project.</p>
+                  <p className="text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest">No projects yet</p>
+                  <p className="text-xs text-slate-300 dark:text-slate-700 font-medium max-w-xs mt-1">Contact our team to get your first project started.</p>
                 </div>
               </div>
             ) : (
@@ -186,7 +188,7 @@ export default function UserDashboard() {
                         </div>
                         <div className="flex items-center gap-4 text-[10px] font-mono text-slate-400 uppercase tracking-widest">
                           <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Expiry: {p.expiryDate ? new Date(p.expiryDate.seconds * 1000).toLocaleDateString() : "N/A"}</span>
-                          <span className="flex items-center gap-1 italic">{p.domainName || "NO_DOMAIN_ALLOCATED"}</span>
+                          <span className="flex items-center gap-1 italic">{p.domainName || "No domain assigned"}</span>
                         </div>
                       </div>
                     </div>
@@ -239,7 +241,7 @@ export default function UserDashboard() {
               ))
             )}
           </div>
-          <Button variant="outline" className="w-full text-[10px]" onClick={() => window.location.href = "/notifications"}>Access Signal Terminal</Button>
+          <Button variant="outline" className="w-full text-[10px]" onClick={() => window.location.href = "/notifications"}>View Notifications</Button>
         </Card>
       </div>
 
@@ -255,31 +257,41 @@ export default function UserDashboard() {
               <div className="p-8 border-b border-brand-border dark:border-white/5 bg-slate-50/50 dark:bg-slate-950/30 flex justify-between items-center">
                 <div className="flex items-center gap-3">
                   <Wrench className="text-amber-500 w-5 h-5" />
-                  <h2 className="text-xl font-black text-brand-text-bold dark:text-white italic uppercase tracking-tighter">Initialize Fix Request</h2>
+                  <h2 className="text-xl font-black text-brand-text-bold dark:text-white italic uppercase tracking-tighter">Submit Fix Request</h2>
                 </div>
-                <button onClick={() => setShowFixModal(null)} className="text-slate-400 hover:text-white transition-colors">✕</button>
+                <button onClick={() => { setShowFixModal(null); setFixDescription(""); setFixSuccess(false); }} className="text-slate-400 hover:text-white transition-colors">✕</button>
               </div>
 
               <form onSubmit={handlePlaceFix} className="p-8 space-y-6">
-                <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 rounded-xl flex gap-3">
-                  <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                  <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase leading-relaxed">
-                    Protocol DT-X: Describe the anomaly in <span className="text-brand-text-bold dark:text-white">"{showFixModal.projectName}"</span>. Our team will review and prioritize.
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Issue Description</label>
-                  <textarea
-                    required
-                    value={fixDescription}
-                    onChange={(e) => setFixDescription(e.target.value)}
-                    className="w-full h-32 bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-xl p-4 text-xs font-bold text-brand-text-bold dark:text-white focus:outline-none focus:border-brand-accent transition-all resize-none"
-                    placeholder="SPECIFY_ANOMALY..."
-                  />
-                </div>
-                <Button type="submit" disabled={submittingFix} className="w-full h-14 bg-amber-500 hover:bg-amber-600 text-white shadow-xl shadow-amber-500/20">
-                  {submittingFix ? <Loader2 className="w-5 h-5 animate-spin" /> : "PROPOSE RESTORATION_"}
-                </Button>
+                {fixSuccess ? (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="py-8 flex flex-col items-center gap-4 text-center">
+                    <CheckCircle2 className="w-12 h-12 text-brand-success" />
+                    <p className="text-sm font-black uppercase tracking-tight text-brand-text-bold dark:text-white">Request submitted!</p>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-widest">Our team will review it shortly.</p>
+                  </motion.div>
+                ) : (
+                  <>
+                    <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 rounded-xl flex gap-3">
+                      <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase leading-relaxed">
+                        Describe the issue with <span className="text-brand-text-bold dark:text-white">"{showFixModal.projectName}"</span>. Our team will review and prioritize.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Issue Description</label>
+                      <textarea
+                        required
+                        value={fixDescription}
+                        onChange={(e) => setFixDescription(e.target.value)}
+                        className="w-full h-32 bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-xl p-4 text-xs font-bold text-brand-text-bold dark:text-white focus:outline-none focus:border-brand-accent transition-all resize-none"
+                        placeholder="Describe your issue..."
+                      />
+                    </div>
+                    <Button type="submit" disabled={submittingFix} className="w-full h-14 bg-amber-500 hover:bg-amber-600 text-white shadow-xl shadow-amber-500/20">
+                      {submittingFix ? <Loader2 className="w-5 h-5 animate-spin" /> : "Submit Request"}
+                    </Button>
+                  </>
+                )}
               </form>
             </motion.div>
           </div>

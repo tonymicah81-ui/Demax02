@@ -15,12 +15,15 @@ import {
   addToVisitorCart,
   removeFromVisitorCart,
 } from "../../lib/visitorCart";
+import { SupportWidget } from "../../components/widget/SupportWidget";
+import { trackVisitor } from "../../lib/visitorIntelligence";
 
 interface Category { id: string; name: string; }
 interface SubCategory { id: string; categoryId: string; name: string; }
 interface Product {
   id: string; categoryId: string; subCategoryId?: string;
   name: string; price: number; description: string; images: string[];
+  tags?: string[];
 }
 interface CartItem {
   id: string; productId: string; name: string; price: number; image: string;
@@ -40,6 +43,10 @@ export default function Store() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [showCart, setShowCart] = useState(false);
   const [addedFeedback, setAddedFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    trackVisitor("store").catch(() => {});
+  }, []);
 
   useEffect(() => {
     const unsubCats = onSnapshot(collection(db, "categories"), (snap) => {
@@ -127,7 +134,7 @@ export default function Store() {
   const cartTotal = cartItems.reduce((s, i) => s + i.price, 0);
 
   const filteredProducts = products.filter(p => {
-    const matchCat = !selectedCategory || p.categoryId === selectedCategory;
+    const matchCat = !selectedCategory || p.categoryId === selectedCategory || (p.tags || []).includes(selectedCategory);
     const matchSub = !selectedSubCategory || p.subCategoryId === selectedSubCategory;
     const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.description?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -482,6 +489,7 @@ export default function Store() {
           </>
         )}
       </AnimatePresence>
+      <SupportWidget source="store" />
     </div>
   );
 }

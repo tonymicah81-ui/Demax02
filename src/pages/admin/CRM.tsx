@@ -103,7 +103,7 @@ export default function CRM() {
       <div className="pb-6 border-b border-brand-border dark:border-white/5 flex items-end justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">CRM — Leads</h1>
-          <p className="text-brand-accent font-black mt-2 uppercase tracking-[0.3em] text-[10px] italic">Client Pipeline Management // Admin Control</p>
+          <p className="text-brand-accent font-black mt-2 uppercase tracking-[0.3em] text-[10px] italic">Client pipeline management</p>
         </div>
         <Button onClick={() => { setShowForm(p => !p); if (editId) { setEditId(null); setForm({ ...BLANK }); } }} className="gap-2 bg-brand-accent text-white">
           <Plus className="w-4 h-4" /> {showForm && !editId ? 'Cancel' : 'Add Lead'}

@@ -12,8 +12,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../../AuthContext";
 import { revokeSessionByAdmin } from "../../lib/sessionService";
+import { UserNotepad } from "../../components/admin/UserNotepad";
 
-type Tab = "overview" | "projects" | "transactions" | "orders" | "sessions" | "actions" | "email";
+type Tab = "overview" | "projects" | "transactions" | "orders" | "sessions" | "actions" | "email" | "notes";
 
 const STATUS_STYLE: Record<string, string> = {
   completed: "bg-brand-success/10 text-brand-success",
@@ -331,6 +332,7 @@ export default function UserDetails() {
     { key: "orders", label: "Orders", count: orders.length },
     { key: "sessions", label: "Sessions", count: sessions.length },
     { key: "email", label: "Email / Coupons" },
+    { key: "notes", label: "Notes" },
     { key: "actions", label: "Admin Actions" },
   ];
 
@@ -621,6 +623,13 @@ export default function UserDetails() {
                 </CardTitle>
                 <IssueCouponPanel userId={userId!} userEmail={profile.email} />
               </Card>
+            </div>
+          )}
+
+          {/* NOTES */}
+          {activeTab === "notes" && (
+            <div>
+              <UserNotepad userId={userId!} />
             </div>
           )}
 

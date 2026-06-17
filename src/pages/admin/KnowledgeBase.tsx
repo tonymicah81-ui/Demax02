@@ -84,7 +84,7 @@ export default function KnowledgeBase() {
 
       <div className="pb-6 border-b border-brand-border dark:border-white/5">
         <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">Knowledge Base</h1>
-        <p className="text-brand-accent font-black mt-2 uppercase tracking-[0.3em] text-[10px] italic">Manage Help Articles // Admin Control</p>
+        <p className="text-brand-accent font-black mt-2 uppercase tracking-[0.3em] text-[10px] italic">Manage help articles</p>
       </div>
 
       <Card className="space-y-6">

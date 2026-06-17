@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
 import {
-  Settings, ShieldAlert, Users, Database, Globe, Zap,
+  Settings, Users, TrendingUp,
   Activity, ArrowUpRight, CreditCard, Building, User as UserIcon,
-  Save, Loader2, Lock, TrendingUp, ShoppingCart
+  Save, Loader2, Lock, ShoppingCart, CheckCircle2
 } from "lucide-react";
 import { Card, CardTitle } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { motion } from "motion/react";
 import { db, doc, getDoc, setDoc, serverTimestamp, collection, onSnapshot, query, where } from "../../firebase";
-import { cn } from "../../utils/cn";
 
 interface AuditLog {
   id: string;
@@ -23,6 +22,7 @@ export default function SuperDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const [platformStats, setPlatformStats] = useState({
     totalUsers: 0,
     totalRevenue: 0,
@@ -37,12 +37,10 @@ export default function SuperDashboard() {
       setLoading(false);
     });
 
-    // Real user count
     const unsubUsers = onSnapshot(collection(db, "users"), (snap) => {
       setPlatformStats(prev => ({ ...prev, totalUsers: snap.size }));
     });
 
-    // Real revenue (completed payments)
     const unsubRevenue = onSnapshot(
       query(collection(db, "transactions"), where("status", "==", "completed"), where("type", "==", "payment")),
       (snap) => {
@@ -51,12 +49,10 @@ export default function SuperDashboard() {
       }
     );
 
-    // Total orders
     const unsubOrders = onSnapshot(collection(db, "orders"), (snap) => {
       setPlatformStats(prev => ({ ...prev, totalOrders: snap.size }));
     });
 
-    // Active sessions
     const unsubSessions = onSnapshot(
       query(collection(db, "sessions"), where("active", "==", true)),
       (snap) => {
@@ -64,7 +60,6 @@ export default function SuperDashboard() {
       }
     );
 
-    // Audit logs
     const unsubLogs = onSnapshot(collection(db, "audit_logs"), (snap) => {
       const logs = snap.docs.map(d => ({ id: d.id, ...d.data() })) as AuditLog[];
       logs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
@@ -84,7 +79,8 @@ export default function SuperDashboard() {
         ...bankDetails,
         updatedAt: serverTimestamp()
       });
-      alert("Platform fiscal parameters updated.");
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
       console.error(err);
     } finally {
@@ -98,14 +94,8 @@ export default function SuperDashboard() {
         <div>
           <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic">Control Panel</h1>
           <p className="text-brand-success font-black mt-2 uppercase tracking-[0.3em] text-[10px] italic">
-            Super Admin // Platform Configuration
+            Super Admin · Platform Configuration
           </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="px-5 py-2.5 bg-slate-950 border border-brand-success/30 rounded-xl flex items-center gap-3 shadow-[0_0_20px_rgba(34,197,94,0.15)]">
-            <div className="w-2.5 h-2.5 rounded-full bg-brand-success animate-ping" />
-            <span className="text-[10px] font-mono text-brand-success uppercase tracking-[0.3em] font-black">Core_Stabilized::Full_Access</span>
-          </div>
         </div>
       </div>
 
@@ -138,6 +128,13 @@ export default function SuperDashboard() {
               <Lock className="w-4 h-4 text-brand-accent" />
             </div>
 
+            {saveSuccess && (
+              <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3 p-4 bg-brand-success/10 border border-brand-success/20 rounded-xl">
+                <CheckCircle2 className="w-4 h-4 text-brand-success" />
+                <p className="text-[11px] font-black text-brand-success uppercase tracking-widest">Bank details saved successfully.</p>
+              </motion.div>
+            )}
+
             {loading ? (
               <div className="h-64 flex items-center justify-center">
                 <Loader2 className="w-8 h-8 animate-spin text-brand-accent" />
@@ -153,7 +150,7 @@ export default function SuperDashboard() {
                         type="text" required value={bankDetails.bankName}
                         onChange={(e) => setBankDetails({ ...bankDetails, bankName: e.target.value })}
                         className="w-full bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-2xl pl-12 pr-4 py-4 text-xs font-bold uppercase transition-all focus:border-brand-accent outline-none"
-                        placeholder="GLOBAL_BANK..."
+                        placeholder="Bank name"
                       />
                     </div>
                   </div>
@@ -165,7 +162,7 @@ export default function SuperDashboard() {
                         type="text" required value={bankDetails.accountName}
                         onChange={(e) => setBankDetails({ ...bankDetails, accountName: e.target.value })}
                         className="w-full bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-2xl pl-12 pr-4 py-4 text-xs font-bold uppercase transition-all focus:border-brand-accent outline-none"
-                        placeholder="SOURCE_ARCHITECT..."
+                        placeholder="Account holder name"
                       />
                     </div>
                   </div>
@@ -179,7 +176,7 @@ export default function SuperDashboard() {
                         type="text" required value={bankDetails.accountNumber}
                         onChange={(e) => setBankDetails({ ...bankDetails, accountNumber: e.target.value })}
                         className="w-full bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-2xl pl-12 pr-4 py-4 text-xs font-bold uppercase transition-all focus:border-brand-accent outline-none"
-                        placeholder="0000-0000-0000..."
+                        placeholder="0000-0000-0000"
                       />
                     </div>
                   </div>
@@ -189,12 +186,12 @@ export default function SuperDashboard() {
                       type="text" value={bankDetails.reference}
                       onChange={(e) => setBankDetails({ ...bankDetails, reference: e.target.value })}
                       className="w-full bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-2xl p-4 text-xs font-bold uppercase transition-all focus:border-brand-accent outline-none"
-                      placeholder="USE_SOURCE_UID..."
+                      placeholder="Reference / note"
                     />
                   </div>
                   <div className="pt-2">
                     <Button disabled={saving} className="w-full h-14 bg-brand-accent hover:bg-brand-accent/90 text-white shadow-xl shadow-brand-accent/20 rounded-2xl gap-3">
-                      {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Save className="w-4 h-4" /> COMMIT_SYNC_PARAMS</>}
+                      {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Save className="w-4 h-4" /> Save Bank Details</>}
                     </Button>
                   </div>
                 </div>
@@ -229,7 +226,7 @@ export default function SuperDashboard() {
               {recentAudit.length === 0 ? (
                 <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest text-center py-4">No Audit Logs Yet</p>
               ) : (
-                recentAudit.map((log, i) => (
+                recentAudit.map((log) => (
                   <div key={log.id} className="flex justify-between items-center pb-4 border-b border-slate-100 dark:border-white/5 last:border-0 last:pb-0">
                     <div className="flex items-center gap-3">
                       <div className="w-2 h-2 rounded-full bg-brand-accent" />

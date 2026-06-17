@@ -42,6 +42,8 @@ export default function Subscription() {
   const [couponValidating, setCouponValidating] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
   const [couponError, setCouponError] = useState("");
+  const [activationError, setActivationError] = useState("");
+  const [activationSuccess, setActivationSuccess] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -91,16 +93,17 @@ export default function Subscription() {
   const handleActivate = async (model: SubscriptionModel) => {
     if (!user || !profile || !selectedProjectId) return;
     const finalPrice = getPrice(model.price);
+    setActivationError("");
+    setActivationSuccess("");
 
     if ((profile.balance || 0) < finalPrice) {
-      alert("Insufficient funds. Please add funds to your Wallet first.");
-      window.location.href = "/wallet";
+      setActivationError("Insufficient balance. Please add funds to your Wallet first.");
       return;
     }
 
     const project = projects.find(p => p.id === selectedProjectId);
     if (project?.subscriptions?.includes(model.id)) {
-      alert("This project already has an active protocol for this service.");
+      setActivationError("This project already has an active subscription for this service.");
       return;
     }
 
@@ -110,9 +113,9 @@ export default function Subscription() {
         const userRef = doc(db, "users", user.uid);
         const projectRef = doc(db, "projects", selectedProjectId);
         const userDoc = await tx.get(userRef);
-        if (!userDoc.exists()) throw "User protocol not found";
+        if (!userDoc.exists()) throw new Error("Account not found");
         const currentBalance = userDoc.data().balance || 0;
-        if (currentBalance < finalPrice) throw "Capital deficiency detected";
+        if (currentBalance < finalPrice) throw new Error("Insufficient balance");
 
         tx.update(userRef, { balance: currentBalance - finalPrice });
         const currentSubs = project?.subscriptions || [];
@@ -133,15 +136,16 @@ export default function Subscription() {
         const notifRef = doc(collection(db, "user_notifications"));
         tx.set(notifRef, {
           userId: user.uid, title: "Service Activated",
-          message: `${model.name} is now operational for ${project?.name} (${selectedDuration} month${selectedDuration > 1 ? 's' : ''}).`,
+          message: `${model.name} is now active for ${project?.name} (${selectedDuration} month${selectedDuration > 1 ? 's' : ''}).`,
           read: false, createdAt: serverTimestamp()
         });
       });
       if (appliedCoupon) { try { await redeemCoupon(appliedCoupon.id, user.uid); } catch {} }
-      alert(`Service ${model.name} activated for ${selectedDuration} month${selectedDuration > 1 ? 's' : ''}.`);
-    } catch (err) {
+      setActivationSuccess(`${model.name} activated for ${selectedDuration} month${selectedDuration > 1 ? 's' : ''}.`);
+      setTimeout(() => setActivationSuccess(""), 4000);
+    } catch (err: any) {
       console.error(err);
-      alert("Activation failed: " + err);
+      setActivationError(err?.message || "Activation failed. Please try again.");
     } finally {
       setProcessingId(null);
     }
@@ -160,17 +164,32 @@ export default function Subscription() {
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-brand-border dark:border-white/5">
         <div>
-          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic leading-none">Subscription_Hub</h1>
+          <h1 className="text-4xl font-black text-brand-text-bold dark:text-white uppercase tracking-tighter italic leading-none">Subscriptions</h1>
           <p className="text-brand-accent font-black mt-2 uppercase tracking-[0.2em] text-[10px] italic">
-            Active Infrastructure Services // Ecosystem Maintenance
+            Manage your active services
           </p>
         </div>
       </div>
 
+      {activationError && (
+        <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
+          <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+          <p className="text-[11px] font-bold text-red-500 uppercase tracking-wide">{activationError}</p>
+          <button onClick={() => setActivationError("")} className="ml-auto text-red-400 hover:text-red-500"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
+      {activationSuccess && (
+        <div className="flex items-center gap-3 p-4 bg-brand-success/10 border border-brand-success/20 rounded-2xl">
+          <CheckCircle2 className="w-4 h-4 text-brand-success shrink-0" />
+          <p className="text-[11px] font-bold text-brand-success uppercase tracking-wide">{activationSuccess}</p>
+        </div>
+      )}
+
       <div className="grid lg:grid-cols-3 gap-10">
         <div className="lg:col-span-2 space-y-8">
            <Card className="bg-white dark:bg-slate-900 border-none shadow-md">
-              <CardTitle className="tracking-tighter uppercase italic text-sm mb-6">Target Node Selection</CardTitle>
+              <CardTitle className="tracking-tighter uppercase italic text-sm mb-6">Select Project</CardTitle>
               <select 
                 value={selectedProjectId}
                 onChange={(e) => setSelectedProjectId(e.target.value)}
@@ -178,12 +197,11 @@ export default function Subscription() {
               >
                 <option value="">-- Select a project --</option>
                 {projects.map(p => (
-                  <option key={p.id} value={p.id}>PROJECT: {p.name}</option>
+                  <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
            </Card>
 
-           {/* Duration Selector */}
            <Card className="bg-white dark:bg-slate-900 border-none shadow-md">
               <CardTitle className="tracking-tighter uppercase italic text-sm mb-6">Subscription Duration</CardTitle>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -198,7 +216,6 @@ export default function Subscription() {
               </div>
            </Card>
 
-           {/* Coupon */}
            <Card className="bg-white dark:bg-slate-900 border-none shadow-md">
               <CardTitle className="tracking-tighter uppercase italic text-sm mb-4 flex items-center gap-2"><Tag className="w-4 h-4 text-amber-400" /> Coupon Code</CardTitle>
               {appliedCoupon ? (
@@ -228,7 +245,7 @@ export default function Subscription() {
            <div className="grid md:grid-cols-2 gap-6">
               {models.length === 0 ? (
                 <div className="md:col-span-2 py-20 text-center opacity-30 italic font-black text-sm uppercase tracking-widest">
-                   No Service Modules Available
+                   No services available
                 </div>
               ) : (
                 models.map((s) => {
@@ -277,8 +294,8 @@ export default function Subscription() {
               <CardTitle className="text-white italic tracking-tighter uppercase text-sm relative z-10">Project Status</CardTitle>
               <div className="mt-8 space-y-6 relative z-10">
                  <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
-                    <span className="text-slate-400">Project Status</span>
-                    <span className={selectedProjectId ? "text-brand-success" : "text-amber-500"}>{selectedProjectId ? 'Selected' : 'None selected'}</span>
+                    <span className="text-slate-400">Selected</span>
+                    <span className={selectedProjectId ? "text-brand-success" : "text-amber-500"}>{selectedProjectId ? projects.find(p => p.id === selectedProjectId)?.name || 'Selected' : 'None'}</span>
                  </div>
                  <div className="p-4 bg-white/5 rounded-xl border border-white/5">
                     <p className="text-[9px] text-slate-300 font-bold uppercase leading-relaxed italic">
@@ -292,10 +309,10 @@ export default function Subscription() {
            <Card className="border shadow-md">
               <div className="flex gap-3 text-amber-500 mb-4">
                  <AlertCircle className="w-5 h-5 shrink-0" />
-                 <span className="text-[10px] font-black uppercase tracking-widest">Renewal Protocol</span>
+                 <span className="text-[10px] font-black uppercase tracking-widest">Renewal</span>
               </div>
               <p className="text-[10px] text-slate-500 font-medium leading-relaxed uppercase italic">
-                All subscriptions use automated fiscal deduction. Ensure balance is maintained in the <span className="text-brand-text-bold dark:text-white">FISCAL TERMINAL</span> before expiry timestamps.
+                Subscriptions renew automatically from your <span className="text-brand-text-bold dark:text-white">Wallet</span> balance. Keep it topped up before the expiry date.
               </p>
            </Card>
         </div>

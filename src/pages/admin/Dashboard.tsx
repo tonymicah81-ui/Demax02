@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import {
   Users, MessageSquare, AlertCircle, TrendingUp,
-  ShieldCheck, Activity, ArrowUpRight, Database,
-  Wallet, Loader2
+  Activity, ArrowUpRight, Database,
+  Wallet, Loader2, Settings, CreditCard, Megaphone
 } from "lucide-react";
 import { Card, CardTitle } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -44,7 +44,6 @@ export default function AdminDashboard() {
       (snap) => setStats(prev => ({ ...prev, pendingDeposits: snap.size }))
     );
 
-    // Fixed: use conversations (not legacy chats)
     const unsubConvos = onSnapshot(
       query(collection(db, "conversations"), where("unreadCount", ">", 0)),
       (snap) => {
@@ -53,13 +52,11 @@ export default function AdminDashboard() {
       }
     );
 
-    // Real audit logs
     const unsubLogs = onSnapshot(
       query(collection(db, "audit_logs")),
       (snap) => {
         const logs = snap.docs
           .map(d => ({ id: d.id, ...d.data() })) as AuditLog[];
-        // Sort by createdAt descending
         logs.sort((a, b) => {
           const aT = a.createdAt?.seconds || 0;
           const bT = b.createdAt?.seconds || 0;
@@ -91,6 +88,13 @@ export default function AdminDashboard() {
     return new Date(createdAt).toLocaleTimeString();
   };
 
+  const quickLinks = [
+    { label: "Payments", icon: CreditCard, href: "/admin/payments" },
+    { label: "Broadcast", icon: Megaphone, href: "/admin/broadcast" },
+    { label: "Users", icon: Users, href: "/admin/users" },
+    { label: "Settings", icon: Settings, href: "/admin/settings" },
+  ];
+
   return (
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-brand-border dark:border-white/5">
@@ -99,12 +103,6 @@ export default function AdminDashboard() {
           <p className="text-brand-accent font-black mt-2 uppercase tracking-[0.3em] text-[10px] italic">
             Platform overview and real-time activity
           </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="px-4 py-2 bg-slate-900 border border-white/10 rounded-xl flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-brand-success animate-pulse" />
-            <span className="text-[10px] font-mono text-white uppercase tracking-widest font-black">All Systems Online</span>
-          </div>
         </div>
       </div>
 
@@ -143,15 +141,15 @@ export default function AdminDashboard() {
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">No Recent Activity</p>
               </div>
             ) : (
-              recentLogs.map((log, i) => (
+              recentLogs.map((log) => (
                 <div key={log.id} className="flex items-center justify-between p-5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 group hover:border-brand-accent/30 transition-all">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-900 border border-brand-border dark:border-white/5 flex items-center justify-center text-slate-400 group-hover:text-brand-accent transition-colors">
                       <Activity className="w-5 h-5" />
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1.5">Admin Action</p>
                       <p className="text-sm font-bold text-brand-text-bold dark:text-white uppercase tracking-tight italic">{log.action}</p>
+                      <p className="text-[10px] font-mono text-slate-400 mt-0.5">ID: {log.adminId?.slice(0, 8) || "—"}</p>
                     </div>
                   </div>
                   <div className="text-right">
@@ -166,39 +164,22 @@ export default function AdminDashboard() {
 
         <Card className="bg-brand-primary text-white border-none shadow-2xl relative overflow-hidden group">
           <div className="relative z-10 space-y-8">
-            <CardTitle className="text-white uppercase italic tracking-tighter">System Health</CardTitle>
+            <CardTitle className="text-white uppercase italic tracking-tighter">Quick Access</CardTitle>
 
-            <div className="space-y-6">
-              <div className="flex justify-between items-end">
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Platform Health</p>
-                  <p className="text-2xl font-black italic">Optimal</p>
-                </div>
-                <TrendingUp className="text-brand-success w-6 h-6" />
-              </div>
-              <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: "88.4%" }}
-                  transition={{ duration: 1.5, ease: "easeOut" }}
-                  className="bg-brand-accent h-full shadow-[0_0_15px_rgba(59,130,246,0.8)]"
-                />
-              </div>
-
-              <div className="pt-6 border-t border-white/5 space-y-4">
-                <div className="flex items-center gap-3">
-                  <ShieldCheck className="text-brand-success w-4 h-4" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest">Auth_Middleware::Active</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <ShieldCheck className="text-brand-success w-4 h-4" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest">Firestore_Grip::Enabled</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <ShieldCheck className="text-brand-success w-4 h-4" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest">Sessions::Tracked</span>
-                </div>
-              </div>
+            <div className="space-y-3">
+              {quickLinks.map((link) => (
+                <button
+                  key={link.href}
+                  onClick={() => window.location.href = link.href}
+                  className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white/5 hover:bg-white/10 transition-all border border-white/5 group/link"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center group-hover/link:bg-brand-accent/30 transition-all">
+                    <link.icon className="w-5 h-5 text-white/70" />
+                  </div>
+                  <span className="text-xs font-black uppercase tracking-widest text-white/80 group-hover/link:text-white transition-colors">{link.label}</span>
+                  <ArrowUpRight className="w-4 h-4 text-white/30 group-hover/link:text-white ml-auto transition-colors" />
+                </button>
+              ))}
             </div>
 
             <Button variant="outline" className="w-full h-12 border-white/10 text-white hover:bg-white/5 text-[10px]" onClick={() => window.location.href = "/admin/transactions"}>

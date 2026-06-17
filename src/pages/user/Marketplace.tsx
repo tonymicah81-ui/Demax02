@@ -37,6 +37,7 @@ interface Product {
   price: number;
   description: string;
   images: string[];
+  tags?: string[];
 }
 
 interface Toast {
@@ -111,7 +112,7 @@ export default function Marketplace() {
   };
 
   const filteredProducts = products.filter(p => {
-    const matchesCategory = !selectedCategory || p.categoryId === selectedCategory;
+    const matchesCategory = !selectedCategory || p.categoryId === selectedCategory || (p.tags || []).includes(selectedCategory);
     const matchesSubCategory = !selectedSubCategory || p.subCategoryId === selectedSubCategory;
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSubCategory && matchesSearch;
