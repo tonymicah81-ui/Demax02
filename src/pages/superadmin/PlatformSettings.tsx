@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Shield, Cloud, Palette, Mail, Save, Loader2, CheckCircle2,
   XCircle, Eye, EyeOff, ToggleLeft, ToggleRight, Settings,
-  Key, Code2, Image, AlertTriangle, RefreshCw, Bot, DollarSign
+  Key, Code2, Image, AlertTriangle, RefreshCw, Bot, DollarSign, CreditCard
 } from 'lucide-react';
+import PaymentMethodsPanel from '../../components/superadmin/PaymentMethodsPanel';
 import { Card, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../AuthContext';
@@ -441,7 +442,7 @@ function PlatformBotPanel() {
   );
 }
 
-type Tab = 'general' | 'vault' | 'loading' | 'cloudinary' | 'email' | 'bot' | 'subscriptions' | 'platformBot' | 'branding' | 'ads';
+type Tab = 'general' | 'vault' | 'loading' | 'cloudinary' | 'email' | 'bot' | 'subscriptions' | 'platformBot' | 'branding' | 'ads' | 'payments';
 
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
@@ -730,6 +731,12 @@ export default function PlatformSettings() {
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'platformBot' ? 'bg-brand-accent text-white shadow-lg shadow-brand-accent/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-brand-text-bold dark:hover:text-white'}`}
         >
           <Bot className="w-3.5 h-3.5" /> Platform Bot
+        </button>
+        <button
+          onClick={() => setActiveTab('payments')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'payments' ? 'bg-brand-accent text-white shadow-lg shadow-brand-accent/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-brand-text-bold dark:hover:text-white'}`}
+        >
+          <CreditCard className="w-3.5 h-3.5" /> Payment Methods
         </button>
       </div>
 
@@ -1151,6 +1158,13 @@ export default function PlatformSettings() {
         {activeTab === 'ads' && (
           <motion.div key="ads" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
             <AdsPanel />
+          </motion.div>
+        )}
+
+        {/* PAYMENT METHODS */}
+        {activeTab === 'payments' && (
+          <motion.div key="payments" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+            <PaymentMethodsPanel />
           </motion.div>
         )}
 
