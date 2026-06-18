@@ -72,11 +72,48 @@ export interface SubscriptionSettings {
   updatedAt?: any;
 }
 
+export interface BrandingSettings {
+  logoUrl: string;
+  heroImageUrl: string;
+  faviconUrl: string;
+  updatedAt?: any;
+}
+
+export interface AdsSettings {
+  adsenseClientId: string;
+  adsSlotId: string;
+  adsEnabled: boolean;
+  adsFrequency: number;
+  updatedAt?: any;
+}
+
+export interface AnnouncementItem {
+  id: string;
+  message: string;
+  type: 'promo' | 'info' | 'ad';
+  active: boolean;
+  link?: string;
+}
+
+export interface AnnouncementsSettings {
+  items: AnnouncementItem[];
+  updatedAt?: any;
+}
+
+export interface PaymentSettings {
+  halfPaymentGlobal: boolean;
+  updatedAt?: any;
+}
+
 export interface PlatformSettings {
   cloudinary: CloudinarySettings;
   loading: LoadingSettings;
   general: GeneralSettings;
   subscriptions: SubscriptionSettings;
+  branding: BrandingSettings;
+  ads: AdsSettings;
+  announcements: AnnouncementsSettings;
+  payment: PaymentSettings;
 }
 
 const DEFAULTS: PlatformSettings = {
@@ -84,6 +121,10 @@ const DEFAULTS: PlatformSettings = {
   loading: { effect: 'default', logoUrl: '', customHTML: '', customCSS: '' },
   general: { supportEmail: 'support@durax.com' },
   subscriptions: { emailBasicPrice: 15, emailProPrice: 30, botPrice: 20 },
+  branding: { logoUrl: '', heroImageUrl: '', faviconUrl: '' },
+  ads: { adsenseClientId: '', adsSlotId: '', adsEnabled: false, adsFrequency: 6 },
+  announcements: { items: [] },
+  payment: { halfPaymentGlobal: false },
 };
 
 export async function loadSetting<K extends keyof PlatformSettings>(key: K): Promise<PlatformSettings[K]> {

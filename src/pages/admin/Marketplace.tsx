@@ -1,15 +1,18 @@
 import { useState, useEffect } from "react";
 import {
   Plus, Trash2, Layers, Package, CreditCard,
-  Loader2, Search, ChevronRight, Tag
+  Loader2, Search, ChevronRight, Tag, Megaphone,
+  Percent, Clock, SplitSquareVertical
 } from "lucide-react";
 import { Card, CardTitle } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
-import { db, collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp } from "../../firebase";
+import { db, collection, addDoc, deleteDoc, doc, onSnapshot, setDoc, getDoc, serverTimestamp } from "../../firebase";
 import { useAuth } from "../../AuthContext";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../../utils/cn";
 import { logAudit } from "../../lib/audit";
+import { AnnouncementItem } from "../../lib/platformSettings";
+import { nanoid } from "nanoid";
 
 export default function ManageMarketplace() {
   const { user } = useAuth();
@@ -17,7 +20,9 @@ export default function ManageMarketplace() {
   const [subCategories, setSubCategories] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [subscriptionModels, setSubscriptionModels] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<"categories" | "products" | "subscriptions">("categories");
+  const [activeTab, setActiveTab] = useState<"categories" | "products" | "subscriptions" | "announcements">("categories");
+  const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
+  const [announceSaving, setAnnounceSaving] = useState(false);
   const [showModal, setShowModal] = useState<string | null>(null);
   const [formData, setFormData] = useState<any>({});
   const [submitting, setSubmitting] = useState(false);
@@ -32,8 +37,35 @@ export default function ManageMarketplace() {
       setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const u4 = onSnapshot(collection(db, "subscription_models"), snap =>
       setSubscriptionModels(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
-    return () => { u1(); u2(); u3(); u4(); };
+    const u5 = onSnapshot(doc(db, "platform_settings", "announcements"), snap => {
+      if (snap.exists()) setAnnouncements(snap.data().items || []);
+    });
+    return () => { u1(); u2(); u3(); u4(); u5(); };
   }, []);
+
+  const saveAnnouncements = async (items: AnnouncementItem[]) => {
+    setAnnounceSaving(true);
+    try {
+      await setDoc(doc(db, "platform_settings", "announcements"), { items, updatedAt: serverTimestamp() }, { merge: true });
+      setAnnouncements(items);
+    } catch {}
+    setAnnounceSaving(false);
+  };
+
+  const addAnnouncement = () => {
+    const newItem: AnnouncementItem = { id: nanoid(8), message: "", type: "promo", active: true };
+    saveAnnouncements([...announcements, newItem]);
+  };
+
+  const updateAnnouncement = (idx: number, patch: Partial<AnnouncementItem>) => {
+    const updated = announcements.map((a, i) => i === idx ? { ...a, ...patch } : a);
+    setAnnouncements(updated);
+  };
+
+  const deleteAnnouncement = async (idx: number) => {
+    const updated = announcements.filter((_, i) => i !== idx);
+    await saveAnnouncements(updated);
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +83,9 @@ export default function ManageMarketplace() {
         docRef = await addDoc(collection(db, "products"), {
           ...formData,
           price: Number(formData.price),
+          discountPrice: formData.discountPrice ? Number(formData.discountPrice) : null,
+          discountEndsAt: formData.discountEndsAt || null,
+          halfPaymentEnabled: !!formData.halfPaymentEnabled,
           tags,
           images: formData.images ? formData.images.split("\n").map((s: string) => s.trim()).filter(Boolean) : ["https://picsum.photos/seed/p/400/400"],
           createdAt: serverTimestamp()
@@ -101,6 +136,7 @@ export default function ManageMarketplace() {
     { id: "categories", label: "Categories", icon: Layers },
     { id: "products", label: "Products", icon: Package },
     { id: "subscriptions", label: "Plans", icon: CreditCard },
+    { id: "announcements", label: "Promos", icon: Megaphone },
   ] as const;
 
   return (
@@ -257,6 +293,91 @@ export default function ManageMarketplace() {
         </Card>
       )}
 
+      {activeTab === "announcements" && (
+        <Card className="space-y-6">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-black uppercase tracking-tight flex items-center gap-2">
+              <Megaphone className="w-4 h-4 text-brand-accent" />
+              Promo Announcements <span className="ml-2 text-slate-400 font-medium">({announcements.length})</span>
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={addAnnouncement} disabled={announceSaving} className="gap-1.5 bg-orange-500 text-white text-xs">
+                <Plus className="w-3.5 h-3.5" /> Add Announcement
+              </Button>
+              <Button size="sm" onClick={() => saveAnnouncements(announcements)} disabled={announceSaving} className="gap-1.5 bg-brand-success text-white text-xs">
+                {announceSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save All"}
+              </Button>
+            </div>
+          </div>
+
+          <p className="text-[11px] text-slate-400">
+            Announcements appear as a banner strip at the top of the store and marketplace pages. Set type to control the color. Leave "Link" blank for no button.
+          </p>
+
+          {announcements.length === 0 ? (
+            <div className="h-32 flex items-center justify-center text-sm text-slate-400">No announcements yet</div>
+          ) : (
+            <div className="space-y-4">
+              {announcements.map((ann, idx) => (
+                <div key={ann.id} className="p-5 rounded-2xl border border-brand-border dark:border-white/5 bg-slate-50 dark:bg-slate-950 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">#{idx + 1}</span>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={ann.active}
+                          onChange={e => updateAnnouncement(idx, { active: e.target.checked })}
+                          className="w-4 h-4 accent-brand-success"
+                        />
+                        <span className={cn("text-[11px] font-black uppercase tracking-widest", ann.active ? "text-brand-success" : "text-slate-400")}>
+                          {ann.active ? "Active" : "Inactive"}
+                        </span>
+                      </label>
+                    </div>
+                    <button onClick={() => deleteAnnouncement(idx)} className="p-1.5 text-slate-400 hover:text-red-500 transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div className="md:col-span-2 space-y-2">
+                      <label className={lbl}>Message</label>
+                      <input
+                        type="text"
+                        value={ann.message}
+                        onChange={e => updateAnnouncement(idx, { message: e.target.value })}
+                        className={inp}
+                        placeholder="🔥 Limited offer — 50% off all templates this week!"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className={lbl}>Type</label>
+                      <select value={ann.type} onChange={e => updateAnnouncement(idx, { type: e.target.value as any })} className={inp}>
+                        <option value="promo">🟠 Promo (orange)</option>
+                        <option value="info">🔵 Info (blue)</option>
+                        <option value="ad">🟢 News (green)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className={lbl}>Link URL <span className="font-normal normal-case text-slate-400">(optional)</span></label>
+                    <input
+                      type="url"
+                      value={ann.link || ""}
+                      onChange={e => updateAnnouncement(idx, { link: e.target.value })}
+                      className={inp}
+                      placeholder="https://..."
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
+
       {activeTab === "subscriptions" && (
         <Card className="space-y-6">
           <div className="flex items-center justify-between">
@@ -355,6 +476,36 @@ export default function ManageMarketplace() {
                         <label className={lbl}>Price (USD)</label>
                         <input type="number" required min="0" step="0.01" value={formData.price || ""} onChange={e => setFormData({ ...formData, price: e.target.value })} className={inp} placeholder="0.00" />
                       </div>
+                      <div className="space-y-2">
+                        <label className={lbl + " flex items-center gap-1"}><Percent className="w-3 h-3" /> Discount Price</label>
+                        <input type="number" min="0" step="0.01" value={formData.discountPrice || ""} onChange={e => setFormData({ ...formData, discountPrice: e.target.value })} className={inp} placeholder="Leave blank = no discount" />
+                        {formData.price && formData.discountPrice && Number(formData.price) > 0 && (
+                          <p className="text-[10px] text-brand-success font-bold">
+                            {Math.round((1 - Number(formData.discountPrice) / Number(formData.price)) * 100)}% off
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <label className={lbl + " flex items-center gap-1"}><Clock className="w-3 h-3" /> Sale Ends At</label>
+                        <input type="datetime-local" value={formData.discountEndsAt || ""} onChange={e => setFormData({ ...formData, discountEndsAt: e.target.value })} className={inp} />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 p-4 bg-slate-100 dark:bg-slate-900 rounded-xl border border-brand-border dark:border-white/5">
+                      <input
+                        type="checkbox"
+                        id="halfpay"
+                        checked={!!formData.halfPaymentEnabled}
+                        onChange={e => setFormData({ ...formData, halfPaymentEnabled: e.target.checked })}
+                        className="w-4 h-4 accent-brand-accent"
+                      />
+                      <label htmlFor="halfpay" className="flex items-center gap-2 cursor-pointer">
+                        <SplitSquareVertical className="w-4 h-4 text-brand-accent" />
+                        <div>
+                          <p className="text-sm font-black dark:text-white">Allow Half-Payment (50% now, 50% later)</p>
+                          <p className="text-[10px] text-slate-400">Customers pay 50% upfront and settle the rest on delivery</p>
+                        </div>
+                      </label>
                     </div>
 
                     <div className="space-y-2">

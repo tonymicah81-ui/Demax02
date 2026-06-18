@@ -30,6 +30,8 @@ interface AuthContextType {
   isAdmin: boolean;
   isSuperAdmin: boolean;
   sessionExpiresAt: string | null;
+  adminMode: boolean;
+  setAdminMode: (v: boolean) => void;
   signout: () => Promise<void>;
   signin: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData, type: 'user' | 'admin') => Promise<void>;
@@ -50,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessionExpiresAt, setSessionExpiresAt] = useState<string | null>(getLocalSessionExpiry());
+  const [adminMode, setAdminMode] = useState(false);
 
   useEffect(() => {
     let unsubscribeProfile: (() => void) | null = null;
@@ -212,6 +215,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, profile, loading, isAdmin, isSuperAdmin, sessionExpiresAt,
+      adminMode, setAdminMode,
       signin, signout, register
     }}>
       {children}

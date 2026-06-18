@@ -3,7 +3,7 @@ import { useAuth } from "../../AuthContext";
 import { Loader2 } from "lucide-react";
 
 export function AdminRoute() {
-  const { isAdmin, loading } = useAuth();
+  const { isAdmin, isSuperAdmin, adminMode, loading } = useAuth();
 
   if (loading) {
     return (
@@ -13,7 +13,7 @@ export function AdminRoute() {
     );
   }
 
-  if (!isAdmin) return <Navigate to="/dashboard" replace />;
+  if (!isAdmin && !(isSuperAdmin && adminMode)) return <Navigate to="/dashboard" replace />;
 
   return <Outlet />;
 }

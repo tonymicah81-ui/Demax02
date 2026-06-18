@@ -115,7 +115,9 @@ function useCountUp(target: number, duration = 2000, active = false) {
 export default function LandingPage() {
   const { theme, toggleTheme } = useTheme();
   const { data: generalSettings } = usePlatformSetting("general");
+  const { data: brandingSettings } = usePlatformSetting("branding");
   const supportEmail = (generalSettings as any).supportEmail || "support@durax.com";
+  const heroImageUrl = (brandingSettings as any).heroImageUrl || "/WA_1776458039433.jpeg";
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [taglineIdx, setTaglineIdx] = useState(0);
@@ -322,7 +324,7 @@ export default function LandingPage() {
 
           <motion.div initial={{ opacity: 0, scale: 0.92 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ duration: 0.9, delay: 0.2 }} className="hidden lg:block relative">
             <div className="relative z-10 rounded-[2.5rem] overflow-hidden shadow-[0_40px_80px_-20px_rgba(0,0,0,0.2)] border border-brand-border dark:border-white/5">
-              <img src="/WA_1776458039433.jpeg" alt="Durex Team Premium Web Assets" className="w-full aspect-[16/10] object-cover object-center" />
+              <img src={heroImageUrl} alt="Durex Team Premium Web Assets" className="w-full aspect-[16/10] object-cover object-center" onError={e => { (e.currentTarget as HTMLImageElement).src = "/WA_1776458039433.jpeg"; }} />
               <div className="absolute inset-0 bg-gradient-to-t from-brand-primary/10 to-transparent" />
             </div>
             <div className="absolute -inset-10 bg-brand-accent/10 dark:bg-brand-accent/5 rounded-[3rem] -z-10 blur-3xl" />

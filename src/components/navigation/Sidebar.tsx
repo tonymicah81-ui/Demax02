@@ -3,7 +3,7 @@ import {
   LayoutDashboard, ShoppingCart, MessageSquare, User, Users,
   Settings, ShieldAlert, ChevronRight, Wallet, Bell, Package,
   Wrench, Activity, SlidersHorizontal, Receipt, Monitor, CreditCard, Store,
-  BookOpen, Bot, Mail, Tag, HelpCircle, FileText, BarChart2
+  BookOpen, Bot, Mail, Tag, HelpCircle, BarChart2, UserCog, LogOut
 } from "lucide-react";
 import { useAuth } from "../../AuthContext";
 import { cn } from "../../utils/cn";
@@ -39,7 +39,7 @@ function UnreadCountBadge({ isUserSide }: { isUserSide: boolean }) {
 }
 
 export function Sidebar() {
-  const { profile, isAdmin, isSuperAdmin } = useAuth();
+  const { profile, isAdmin, isSuperAdmin, adminMode, setAdminMode } = useAuth();
 
   const userLinks = [
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -134,6 +134,19 @@ export function Sidebar() {
           <div>
             <p className="text-[10px] font-black text-brand-success uppercase tracking-[0.3em] mb-4 ml-2">Super Authority</p>
             {renderLinks(superAdminLinks)}
+
+            <button
+              onClick={() => setAdminMode(!adminMode)}
+              className={cn(
+                "mt-3 w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all border-2",
+                adminMode
+                  ? "bg-brand-accent/10 border-brand-accent text-brand-accent"
+                  : "bg-slate-100 dark:bg-slate-800 border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+              )}
+            >
+              {adminMode ? <UserCog className="w-4 h-4" /> : <LogOut className="w-4 h-4 opacity-50" />}
+              {adminMode ? "Admin Mode: ON" : "Switch to Admin Mode"}
+            </button>
           </div>
         )}
       </nav>

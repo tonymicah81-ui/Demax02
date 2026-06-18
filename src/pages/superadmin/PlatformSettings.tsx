@@ -15,6 +15,229 @@ import {
 } from '../../lib/platformSettings';
 import { db, doc, updateDoc, setDoc, getDoc, serverTimestamp } from '../../firebase';
 
+function BrandingPanel() {
+  const [logoUrl, setLogoUrl] = useState('');
+  const [heroImageUrl, setHeroImageUrl] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [uploading, setUploading] = useState<'logo' | 'hero' | null>(null);
+
+  const inp = "w-full bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-brand-accent transition-all dark:text-white";
+  const lbl = "text-[10px] font-black text-slate-500 uppercase tracking-widest";
+
+  useEffect(() => {
+    getDoc(doc(db, 'platform_settings', 'branding')).then(snap => {
+      if (snap.exists()) {
+        const d = snap.data();
+        setLogoUrl(d.logoUrl || '');
+        setHeroImageUrl(d.heroImageUrl || '');
+      }
+    });
+  }, []);
+
+  const uploadImage = async (file: File, field: 'logo' | 'hero') => {
+    setUploading(field);
+    try {
+      const cloudSnap = await getDoc(doc(db, 'platform_settings', 'cloudinary'));
+      const cld = cloudSnap.exists() ? cloudSnap.data() : {};
+      const cloudName = cld.cloudName || import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+      const preset = cld.uploadPreset || import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+      if (!cloudName || !preset) throw new Error('Cloudinary not configured');
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('upload_preset', preset);
+      fd.append('folder', 'branding');
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || 'Upload failed');
+      if (field === 'logo') setLogoUrl(data.secure_url);
+      else setHeroImageUrl(data.secure_url);
+    } catch (err: any) {
+      alert('Upload failed: ' + (err.message || err));
+    } finally {
+      setUploading(null);
+    }
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await setDoc(doc(db, 'platform_settings', 'branding'), { logoUrl, heroImageUrl, updatedAt: serverTimestamp() }, { merge: true });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch {}
+    setSaving(false);
+  };
+
+  return (
+    <Card className="space-y-6">
+      <CardTitle className="uppercase italic tracking-tighter flex items-center gap-2">
+        <Image className="w-4 h-4 text-brand-accent" /> Platform Branding
+      </CardTitle>
+      <p className="text-[11px] text-slate-400 leading-relaxed">
+        Upload a platform logo (shown in sidebar, chat widget, and loading screen) and a hero image (shown on the landing page). Changes apply globally in real-time.
+      </p>
+
+      <div className="grid md:grid-cols-2 gap-8">
+        {/* Logo */}
+        <div className="space-y-4">
+          <label className={lbl}>Platform Logo</label>
+          {logoUrl && (
+            <div className="w-24 h-24 rounded-2xl overflow-hidden border-2 border-brand-border dark:border-white/10 bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
+              <img src={logoUrl} alt="Logo" className="w-full h-full object-contain p-2" />
+            </div>
+          )}
+          <div className="space-y-2">
+            <input
+              type="text"
+              value={logoUrl}
+              onChange={e => setLogoUrl(e.target.value)}
+              className={inp}
+              placeholder="https://... or upload below"
+            />
+            <label className="flex items-center gap-2 w-full cursor-pointer">
+              <div className="flex-1 flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 transition-colors">
+                {uploading === 'logo' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Image className="w-3.5 h-3.5" />}
+                {uploading === 'logo' ? 'Uploading...' : 'Upload Logo Image'}
+              </div>
+              <input type="file" accept="image/*" className="hidden" disabled={!!uploading} onChange={e => {
+                const file = e.target.files?.[0];
+                if (file) uploadImage(file, 'logo');
+                e.target.value = '';
+              }} />
+            </label>
+          </div>
+        </div>
+
+        {/* Hero Image */}
+        <div className="space-y-4">
+          <label className={lbl}>Landing Page Hero Image</label>
+          {heroImageUrl && (
+            <div className="w-full aspect-video rounded-2xl overflow-hidden border-2 border-brand-border dark:border-white/10 bg-slate-100 dark:bg-slate-900">
+              <img src={heroImageUrl} alt="Hero" className="w-full h-full object-cover" />
+            </div>
+          )}
+          <div className="space-y-2">
+            <input
+              type="text"
+              value={heroImageUrl}
+              onChange={e => setHeroImageUrl(e.target.value)}
+              className={inp}
+              placeholder="https://... or upload below"
+            />
+            <label className="flex items-center gap-2 w-full cursor-pointer">
+              <div className="flex-1 flex items-center gap-2 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 transition-colors">
+                {uploading === 'hero' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Image className="w-3.5 h-3.5" />}
+                {uploading === 'hero' ? 'Uploading...' : 'Upload Hero Image'}
+              </div>
+              <input type="file" accept="image/*" className="hidden" disabled={!!uploading} onChange={e => {
+                const file = e.target.files?.[0];
+                if (file) uploadImage(file, 'hero');
+                e.target.value = '';
+              }} />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <Button onClick={save} disabled={saving} className={`gap-2 ${saved ? 'bg-brand-success' : 'bg-brand-accent'} text-white`}>
+        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+        {saved ? 'Saved!' : 'Save Branding'}
+      </Button>
+    </Card>
+  );
+}
+
+function AdsPanel() {
+  const [config, setConfig] = useState({ adsEnabled: false, adsenseClientId: '', adsSlotId: '', gtmId: '' });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const inp = "w-full bg-slate-50 dark:bg-slate-950 border border-brand-border dark:border-white/5 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-brand-accent transition-all dark:text-white";
+  const lbl = "text-[10px] font-black text-slate-500 uppercase tracking-widest";
+
+  useEffect(() => {
+    getDoc(doc(db, 'platform_settings', 'ads')).then(snap => {
+      if (snap.exists()) setConfig(c => ({ ...c, ...snap.data() }));
+    });
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await setDoc(doc(db, 'platform_settings', 'ads'), { ...config, updatedAt: serverTimestamp() }, { merge: true });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch {}
+    setSaving(false);
+  };
+
+  return (
+    <Card className="space-y-6">
+      <CardTitle className="uppercase italic tracking-tighter flex items-center gap-2">
+        <Code2 className="w-4 h-4 text-brand-accent" /> Google Ads / AdSense
+      </CardTitle>
+      <p className="text-[11px] text-slate-400 leading-relaxed">
+        Configure Google AdSense to display ads in the store between product listings. Enable the toggle, then enter your Publisher ID and Ad Slot ID from your AdSense account.
+      </p>
+
+      <div className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-brand-border dark:border-white/5">
+        <button
+          onClick={() => setConfig(c => ({ ...c, adsEnabled: !c.adsEnabled }))}
+          className="text-brand-success transition-transform hover:scale-105"
+        >
+          {config.adsEnabled ? <ToggleRight className="w-10 h-10" /> : <ToggleLeft className="w-10 h-10 text-slate-400" />}
+        </button>
+        <div>
+          <p className="text-sm font-black dark:text-white">Ad Display: {config.adsEnabled ? "Enabled" : "Disabled"}</p>
+          <p className="text-[10px] text-slate-400">When enabled, ads appear in the store product grid every 6 items</p>
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <label className={lbl}>AdSense Publisher ID</label>
+          <input
+            type="text"
+            value={config.adsenseClientId}
+            onChange={e => setConfig(c => ({ ...c, adsenseClientId: e.target.value }))}
+            className={inp}
+            placeholder="ca-pub-XXXXXXXXXXXXXXXX"
+          />
+          <p className="text-[10px] text-slate-400">Found in your AdSense account under Account Info</p>
+        </div>
+        <div className="space-y-2">
+          <label className={lbl}>Ad Unit Slot ID</label>
+          <input
+            type="text"
+            value={config.adsSlotId}
+            onChange={e => setConfig(c => ({ ...c, adsSlotId: e.target.value }))}
+            className={inp}
+            placeholder="1234567890"
+          />
+          <p className="text-[10px] text-slate-400">Found under Ads → By Ad Unit in AdSense</p>
+        </div>
+        <div className="space-y-2 md:col-span-2">
+          <label className={lbl}>Google Tag Manager ID <span className="font-normal normal-case text-slate-400">(optional)</span></label>
+          <input
+            type="text"
+            value={config.gtmId}
+            onChange={e => setConfig(c => ({ ...c, gtmId: e.target.value }))}
+            className={inp}
+            placeholder="GTM-XXXXXXX"
+          />
+          <p className="text-[10px] text-slate-400">If set, the GTM script is injected into the page head automatically</p>
+        </div>
+      </div>
+
+      <Button onClick={save} disabled={saving} className={`gap-2 ${saved ? 'bg-brand-success' : 'bg-brand-accent'} text-white`}>
+        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+        {saved ? 'Saved!' : 'Save Ad Settings'}
+      </Button>
+    </Card>
+  );
+}
+
 function SmtpSettingsPanel() {
   const [data, setData] = useState({ provider: 'emailjs', serviceId: '', templateId: '', publicKey: '', host: '', port: 587, username: '', password: '', fromName: 'Platform Support', fromAddress: '', ssl: true });
   const [saving, setSaving] = useState(false);
@@ -218,7 +441,7 @@ function PlatformBotPanel() {
   );
 }
 
-type Tab = 'general' | 'vault' | 'loading' | 'cloudinary' | 'email' | 'bot' | 'subscriptions' | 'platformBot';
+type Tab = 'general' | 'vault' | 'loading' | 'cloudinary' | 'email' | 'bot' | 'subscriptions' | 'platformBot' | 'branding' | 'ads';
 
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
@@ -450,6 +673,8 @@ export default function PlatformSettings() {
 
   const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: 'general', label: 'General', icon: Settings },
+    { id: 'branding', label: 'Branding', icon: Image },
+    { id: 'ads', label: 'Google Ads', icon: Code2 },
     { id: 'vault', label: 'Vault', icon: Shield },
     { id: 'loading', label: 'Loading Screen', icon: Palette },
     { id: 'cloudinary', label: 'Cloudinary', icon: Cloud },
@@ -915,6 +1140,20 @@ export default function PlatformSettings() {
             </Card>
           </motion.div>
         )}
+        {/* BRANDING */}
+        {activeTab === 'branding' && (
+          <motion.div key="branding" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+            <BrandingPanel />
+          </motion.div>
+        )}
+
+        {/* ADS */}
+        {activeTab === 'ads' && (
+          <motion.div key="ads" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+            <AdsPanel />
+          </motion.div>
+        )}
+
         {/* PLATFORM BOT */}
         {activeTab === 'platformBot' && (
           <motion.div key="platformBot" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">

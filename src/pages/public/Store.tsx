@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import {
   ShoppingCart, Search, Loader2, Plus, CheckCircle2,
-  X, Trash2, ArrowRight, LogIn, ShoppingBag, SlidersHorizontal, ArrowUpRight
+  X, Trash2, ArrowRight, LogIn, ShoppingBag, SlidersHorizontal,
+  SplitSquareVertical, Clock
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useNavigate } from "react-router-dom";
@@ -17,6 +18,8 @@ import {
 } from "../../lib/visitorCart";
 import { SupportWidget } from "../../components/widget/SupportWidget";
 import { trackVisitor } from "../../lib/visitorIntelligence";
+import { PromoAnnouncements } from "../../components/marketplace/PromoAnnouncements";
+import { AdSlot } from "../../components/marketplace/AdSlot";
 
 interface Category { id: string; name: string; }
 interface SubCategory { id: string; categoryId: string; name: string; }
@@ -24,7 +27,155 @@ interface Product {
   id: string; categoryId: string; subCategoryId?: string;
   name: string; price: number; description: string; images: string[];
   tags?: string[];
+  discountPrice?: number;
+  discountEndsAt?: string;
+  halfPaymentEnabled?: boolean;
 }
+
+function useCountdown(endsAt?: string) {
+  const [timeLeft, setTimeLeft] = useState<string | null>(null);
+  useEffect(() => {
+    if (!endsAt) return;
+    const update = () => {
+      const diff = new Date(endsAt).getTime() - Date.now();
+      if (diff <= 0) { setTimeLeft(null); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimeLeft(`${h > 0 ? h + "h " : ""}${m}m ${s}s`);
+    };
+    update();
+    const t = setInterval(update, 1000);
+    return () => clearInterval(t);
+  }, [endsAt]);
+  return timeLeft;
+}
+
+function ProductCard({
+  p, i, isInCart, hasDiscount, discountPct, displayPrice,
+  addingToCart, addedFeedback, onAddToCart
+}: {
+  p: Product; i: number; isInCart: boolean; hasDiscount: boolean;
+  discountPct: number; displayPrice: number;
+  addingToCart: string | null; addedFeedback: string | null;
+  onAddToCart: (p: Product) => void;
+}) {
+  const countdown = useCountdown(hasDiscount ? p.discountEndsAt : undefined);
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, scale: 0.94 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.92 }}
+      transition={{ duration: 0.25, delay: i * 0.03 }}
+    >
+      <Card className="p-0 border-none overflow-hidden group shadow-md hover:shadow-xl transition-shadow bg-white dark:bg-slate-900">
+        <div className="aspect-square bg-slate-100 dark:bg-slate-950 relative overflow-hidden">
+          <img
+            src={p.images?.[0] || "https://picsum.photos/seed/" + p.id + "/400/400"}
+            alt={p.name}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+          />
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+            <Button
+              onClick={() => onAddToCart(p)}
+              disabled={addingToCart === p.id || isInCart}
+              className={cn("gap-2 text-xs", isInCart && "bg-brand-success hover:bg-brand-success")}
+            >
+              {addingToCart === p.id ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : isInCart || addedFeedback === p.id ? (
+                <><CheckCircle2 className="w-4 h-4" /> IN_CART</>
+              ) : (
+                <><Plus className="w-4 h-4" /> ADD_TO_CART</>
+              )}
+            </Button>
+          </div>
+
+          {/* Price badge */}
+          <div className="absolute top-3 right-3">
+            {hasDiscount ? (
+              <div className="flex flex-col items-end gap-1">
+                <span className="px-2.5 py-1 bg-red-500/90 backdrop-blur-md rounded-lg border border-white/10 text-xs font-black text-white italic">
+                  ${displayPrice}
+                </span>
+                <span className="px-2 py-0.5 bg-black/50 backdrop-blur-md rounded-md text-[9px] font-black text-red-300 line-through">
+                  ${p.price}
+                </span>
+              </div>
+            ) : (
+              <div className="px-2.5 py-1 bg-brand-primary/80 backdrop-blur-md rounded-lg border border-white/10">
+                <span className="text-xs font-black text-white italic">${p.price}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Discount badge */}
+          {hasDiscount && (
+            <div className="absolute top-3 left-3 px-2.5 py-1 bg-red-500 rounded-lg shadow-lg">
+              <span className="text-[10px] font-black text-white uppercase tracking-widest">-{discountPct}%</span>
+            </div>
+          )}
+
+          {/* In-cart checkmark */}
+          {isInCart && !hasDiscount && (
+            <div className="absolute top-3 left-3 w-7 h-7 bg-brand-success rounded-full flex items-center justify-center shadow-lg">
+              <CheckCircle2 className="w-4 h-4 text-white" />
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 sm:p-5">
+          <h3 className="text-sm font-black text-brand-text-bold dark:text-white uppercase tracking-tight italic mb-1 truncate">{p.name}</h3>
+          <p className="text-[10px] text-slate-500 font-medium line-clamp-2 italic leading-relaxed">{p.description}</p>
+
+          {/* Countdown timer */}
+          {hasDiscount && countdown && (
+            <div className="mt-2 flex items-center gap-1.5 text-[10px] font-black text-red-500 uppercase tracking-widest">
+              <Clock className="w-3 h-3 animate-pulse" />
+              Sale ends in {countdown}
+            </div>
+          )}
+
+          {/* Half-payment badge */}
+          {p.halfPaymentEnabled && (
+            <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-black text-brand-accent uppercase tracking-widest">
+              <SplitSquareVertical className="w-3 h-3" />
+              50% now, 50% on delivery
+            </div>
+          )}
+
+          <div className="mt-4 pt-4 border-t border-brand-border dark:border-white/5 flex items-center justify-between">
+            <div>
+              {hasDiscount ? (
+                <div className="flex items-baseline gap-2">
+                  <span className="text-lg font-black text-red-500 italic">${displayPrice}</span>
+                  <span className="text-xs font-bold text-slate-400 line-through">${p.price}</span>
+                </div>
+              ) : (
+                <span className="text-lg font-black text-brand-success italic">${p.price}</span>
+              )}
+            </div>
+            <button
+              onClick={() => onAddToCart(p)}
+              disabled={addingToCart === p.id || isInCart}
+              className={cn(
+                "text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg transition-all",
+                isInCart
+                  ? "bg-brand-success/10 text-brand-success cursor-default"
+                  : "bg-brand-accent/10 text-brand-accent hover:bg-brand-accent hover:text-white"
+              )}
+            >
+              {isInCart ? "✓ Added" : "+ Cart"}
+            </button>
+          </div>
+        </div>
+      </Card>
+    </motion.div>
+  );
+}
+
 interface CartItem {
   id: string; productId: string; name: string; price: number; image: string;
 }
@@ -198,6 +349,9 @@ export default function Store() {
         </div>
       </div>
 
+      {/* ─── PROMO ANNOUNCEMENTS ─── */}
+      <PromoAnnouncements />
+
       {/* ─── GUEST BANNER ─── */}
       {!user && (
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
@@ -348,67 +502,29 @@ export default function Store() {
               <AnimatePresence mode="popLayout">
                 {filteredProducts.map((p, i) => {
                   const isInCart = cartItems.some(c => c.productId === p.id);
+                  const hasDiscount = typeof p.discountPrice === "number" && p.discountPrice < p.price;
+                  const discountPct = hasDiscount ? Math.round((1 - p.discountPrice! / p.price) * 100) : 0;
+                  const displayPrice = hasDiscount ? p.discountPrice! : p.price;
                   return (
-                    <motion.div
-                      key={p.id}
-                      layout
-                      initial={{ opacity: 0, scale: 0.94 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.92 }}
-                      transition={{ duration: 0.25, delay: i * 0.03 }}
-                    >
-                      <Card className="p-0 border-none overflow-hidden group shadow-md hover:shadow-xl transition-shadow bg-white dark:bg-slate-900">
-                        <div className="aspect-square bg-slate-100 dark:bg-slate-950 relative overflow-hidden">
-                          <img
-                            src={p.images?.[0] || "https://picsum.photos/seed/" + p.id + "/400/400"}
-                            alt={p.name}
-                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                          />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
-                            <Button
-                              onClick={() => handleAddToCart(p)}
-                              disabled={addingToCart === p.id || isInCart}
-                              className={cn("gap-2 text-xs", isInCart && "bg-brand-success hover:bg-brand-success")}
-                            >
-                              {addingToCart === p.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : isInCart || addedFeedback === p.id ? (
-                                <><CheckCircle2 className="w-4 h-4" /> IN_CART</>
-                              ) : (
-                                <><Plus className="w-4 h-4" /> ADD_TO_CART</>
-                              )}
-                            </Button>
-                          </div>
-                          <div className="absolute top-3 right-3 px-2.5 py-1 bg-brand-primary/80 backdrop-blur-md rounded-lg border border-white/10">
-                            <span className="text-xs font-black text-white italic">${p.price}</span>
-                          </div>
-                          {isInCart && (
-                            <div className="absolute top-3 left-3 w-7 h-7 bg-brand-success rounded-full flex items-center justify-center shadow-lg">
-                              <CheckCircle2 className="w-4 h-4 text-white" />
-                            </div>
-                          )}
+                    <>
+                      {i > 0 && i % 6 === 0 && (
+                        <div key={`ad-${i}`} className="col-span-full">
+                          <AdSlot />
                         </div>
-                        <div className="p-4 sm:p-5">
-                          <h3 className="text-sm font-black text-brand-text-bold dark:text-white uppercase tracking-tight italic mb-1 truncate">{p.name}</h3>
-                          <p className="text-[10px] text-slate-500 font-medium line-clamp-2 italic leading-relaxed">{p.description}</p>
-                          <div className="mt-4 pt-4 border-t border-brand-border dark:border-white/5 flex items-center justify-between">
-                            <span className="text-lg font-black text-brand-success italic">${p.price}</span>
-                            <button
-                              onClick={() => handleAddToCart(p)}
-                              disabled={addingToCart === p.id || isInCart}
-                              className={cn(
-                                "text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg transition-all",
-                                isInCart
-                                  ? "bg-brand-success/10 text-brand-success cursor-default"
-                                  : "bg-brand-accent/10 text-brand-accent hover:bg-brand-accent hover:text-white"
-                              )}
-                            >
-                              {isInCart ? "✓ Added" : "+ Cart"}
-                            </button>
-                          </div>
-                        </div>
-                      </Card>
-                    </motion.div>
+                      )}
+                      <ProductCard
+                        key={p.id}
+                        p={p}
+                        i={i}
+                        isInCart={isInCart}
+                        hasDiscount={hasDiscount}
+                        discountPct={discountPct}
+                        displayPrice={displayPrice}
+                        addingToCart={addingToCart}
+                        addedFeedback={addedFeedback}
+                        onAddToCart={handleAddToCart}
+                      />
+                    </>
                   );
                 })}
               </AnimatePresence>
