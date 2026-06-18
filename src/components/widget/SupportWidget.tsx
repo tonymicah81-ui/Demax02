@@ -17,9 +17,11 @@ export function SupportWidget({ source = "website" }: { source?: string }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState("");
   const [messages, setMessages] = useState<VisitorMessage[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState("");
   const [adminOnline, setAdminOnline] = useState(false);
   const [unread, setUnread] = useState(0);
   const [logoUrl, setLogoUrl] = useState<string>(FALLBACK_LOGO);
@@ -86,13 +88,22 @@ export function SupportWidget({ source = "website" }: { source?: string }) {
   const handleStart = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    setStartError("");
     setStarting(true);
     try {
       await startVisitorConversation(visitorId, name.trim(), email.trim(), source);
       localStorage.setItem("dt_widget_started", JSON.stringify({ name: name.trim(), email: email.trim() }));
       setStep("chat");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      const msg = err?.message || String(err);
+      if (msg.includes("permission") || msg.includes("Missing or insufficient")) {
+        setStartError("Connection blocked — Firestore rules may need updating in Firebase Console.");
+      } else if (msg.includes("offline") || msg.includes("network")) {
+        setStartError("No connection. Please check your internet and try again.");
+      } else {
+        setStartError("Something went wrong. Please try again.");
+      }
     } finally {
       setStarting(false);
     }
@@ -103,11 +114,14 @@ export function SupportWidget({ source = "website" }: { source?: string }) {
     if (!text.trim() || sending) return;
     const msg = text.trim();
     setText("");
+    setSendError("");
     setSending(true);
     try {
       await sendVisitorMessage(visitorId, msg);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setText(msg);
+      setSendError("Failed to send. Please try again.");
     } finally {
       setSending(false);
     }
@@ -222,6 +236,9 @@ export function SupportWidget({ source = "website" }: { source?: string }) {
                   >
                     {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Start Chatting →"}
                   </button>
+                  {startError && (
+                    <p className="text-[11px] text-red-500 font-medium text-center leading-snug pt-1">{startError}</p>
+                  )}
                 </form>
               ) : (
                 <>
@@ -254,6 +271,9 @@ export function SupportWidget({ source = "website" }: { source?: string }) {
                     <div ref={bottomRef} />
                   </div>
 
+                  {sendError && (
+                    <p className="text-[11px] text-red-500 font-medium text-center px-4 pb-1">{sendError}</p>
+                  )}
                   <form onSubmit={handleSend} className="p-3 border-t border-slate-100 dark:border-white/5 flex items-center gap-2">
                     <input
                       value={text}
